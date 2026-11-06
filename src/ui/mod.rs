@@ -122,6 +122,8 @@ pub struct App {
     message: Option<(String, bool)>,
     autostart: bool,
     shots: Option<shots::Shots>,
+    tray: Option<crate::tray::Tray>,
+    tray_updated: std::time::Instant,
 }
 
 /// Cópia do estado de um alvo para desenhar sem segurar o lock.
@@ -159,6 +161,7 @@ impl App {
         let monitor = Monitor::new(&cfg);
         let usage = netusage::spawn();
         crate::status::spawn_writer(monitor.shared.clone(), usage.clone());
+        let tray = crate::tray::install(cc, monitor.shared.clone(), usage.clone());
         Self {
             draft: cfg.clone(),
             cfg,
@@ -173,6 +176,8 @@ impl App {
             message: None,
             autostart: crate::autostart::is_enabled(),
             shots: shots::Shots::from_env(),
+            tray,
+            tray_updated: std::time::Instant::now(),
         }
     }
 
@@ -309,6 +314,20 @@ impl eframe::App for App {
         ui.ctx().request_repaint_after(Duration::from_millis(500));
         let ctx = ui.ctx().clone();
         self.drive_shots(&ctx);
+
+        // Com bandeja, fechar a janela só a esconde; o app segue monitorando.
+        if self.tray.is_some() && ctx.input(|i| i.viewport().close_requested()) {
+            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
+        }
+        if self.tray.is_some() && self.tray_updated.elapsed() > Duration::from_secs(2) {
+            self.tray_updated = std::time::Instant::now();
+            let (rows, _) = self.snapshot();
+            let (level, title, _) = home::overall(&rows);
+            if let Some(t) = self.tray.as_mut() {
+                t.update(level, &format!("Monitor de Rede — {title}"));
+            }
+        }
         self.top_bar(ui);
         let frame = egui::Frame::new().fill(BG).inner_margin(16);
         egui::CentralPanel::default_margins().frame(frame).show(ui, |ui| match self.view {

@@ -20,6 +20,17 @@ Não precisa instalar nada.
 - **macOS:** descompacte, mova para Aplicativos e, na primeira vez, clique com o botão direito → **Abrir**. Isso é preciso porque o app não é assinado pela Apple.
 - **Linux:** descompacte e rode `./monitor-rede`.
 
+## Bandeja do sistema
+
+No Windows e no macOS, **fechar a janela não encerra o app**: ele vai para a bandeja do sistema (perto do relógio) e continua monitorando.
+
+- **Cor do ícone:** acompanha a rede (verde, amarelo ou vermelho). Passe o mouse para ver o resumo.
+- **Clique no ícone** (ou **Abrir Monitor de Rede**): mostra a janela de novo.
+- **Botão direito → Encerrar app:** fecha de verdade.
+- **Iniciar com o sistema:** com essa opção ligada, o app abre direto na bandeja, sem mostrar a janela (argumento `--bandeja`).
+
+No Linux, a bandeja exigiria GTK. Lá, fechar a janela encerra o app.
+
 ## Telas
 
 **Início:** mostra o status geral em português do dia a dia e um cartão por endereço, com a latência.
@@ -167,4 +178,5 @@ git tag v0.3.0 && git push origin v0.3.0
 | `src/assess.rs` | avaliação em linguagem simples (verde, amarelo, vermelho) |
 | `src/status.rs` | status ao vivo em JSON |
 | `src/mcp.rs` | servidor MCP por stdio |
+| `src/tray.rs` | ícone na bandeja do sistema |
 | `src/ui/` | telas, feitas com [egui](https://github.com/emilk/egui) |

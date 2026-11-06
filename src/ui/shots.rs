@@ -13,6 +13,9 @@ pub struct Shots {
     start: Instant,
     step: usize,
     requested: bool,
+    /// Teste da bandeja: esconde a janela e reabre como o clique no ícone faz.
+    hidden_at: Option<Instant>,
+    reopened_shot: bool,
 }
 
 const STEPS: [(&str, View, Chart); 7] = [
@@ -29,7 +32,7 @@ impl Shots {
     pub fn from_env() -> Option<Self> {
         let dir = PathBuf::from(std::env::var_os("MONITOR_REDE_SHOTS")?);
         let _ = std::fs::create_dir_all(&dir);
-        Some(Self { dir, start: Instant::now(), step: 0, requested: false })
+        Some(Self { dir, start: Instant::now(), step: 0, requested: false, hidden_at: None, reopened_shot: false })
     }
 }
 
@@ -43,8 +46,36 @@ impl App {
         }
         let step = (t / STEP_SECS) as usize;
         if step >= STEPS.len() {
-            if t > STEPS.len() as f64 * STEP_SECS + 2.0 {
+            if self.tray.is_none() {
                 std::process::exit(0);
+            }
+            // Esconde, e 2 s depois outra thread reabre (como o clique no ícone).
+            let s = self.shots.as_mut().unwrap();
+            match s.hidden_at {
+                None => {
+                    s.hidden_at = Some(Instant::now());
+                    self.view = View::Home;
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
+                    let c = ctx.clone();
+                    std::thread::spawn(move || {
+                        std::thread::sleep(Duration::from_secs(2));
+                        crate::tray::wake(&c);
+                    });
+                }
+                Some(h) if h.elapsed().as_secs_f64() > 4.0 && !s.reopened_shot => {
+                    s.reopened_shot = true;
+                    let path = s.dir.join("8-reaberto.ppm");
+                    ctx.request_screenshot(move |img| {
+                        let [w, h] = img.size;
+                        let mut data = format!("P6\n{w} {h}\n255\n").into_bytes();
+                        for p in &img.pixels {
+                            data.extend_from_slice(&[p.r(), p.g(), p.b()]);
+                        }
+                        let _ = std::fs::write(path, data);
+                    });
+                }
+                Some(h) if h.elapsed().as_secs_f64() > 6.0 => std::process::exit(0),
+                _ => {}
             }
             return;
         }

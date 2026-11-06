@@ -31,7 +31,7 @@ mod imp {
 
     pub fn set(on: bool) -> Result<(), String> {
         let out = if on {
-            let val = format!("\"{}\"", super::exe()?);
+            let val = format!("\"{}\" {}", super::exe()?, crate::tray::START_HIDDEN_ARG);
             reg(&["add", KEY, "/v", NAME, "/t", "REG_SZ", "/d", &val, "/f"])
         } else {
             reg(&["delete", KEY, "/v", NAME, "/f"])
@@ -68,11 +68,12 @@ mod imp {
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
 <key>Label</key><string>com.hfabio.monitor-rede</string>
-<key>ProgramArguments</key><array><string>{}</string></array>
+<key>ProgramArguments</key><array><string>{}</string><string>{}</string></array>
 <key>RunAtLoad</key><true/>
 </dict></plist>
 "#,
-            super::exe()?
+            super::exe()?,
+            crate::tray::START_HIDDEN_ARG
         );
         std::fs::create_dir_all(p.parent().unwrap()).map_err(|e| e.to_string())?;
         std::fs::write(&p, plist).map_err(|e| e.to_string())
