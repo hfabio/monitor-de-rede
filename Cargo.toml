@@ -1,0 +1,31 @@
+[package]
+name = "monitor-rede"
+version = "0.2.0"
+edition = "2021"
+description = "Monitor de latência, perda de pacotes e uso da rede com interface gráfica"
+repository = "https://github.com/hfabio/monitor-de-rede"
+
+[dependencies]
+eframe = "0.37"
+egui_plot = "0.38"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+dirs = "7"
+chrono = "0.4"
+rusqlite = { version = "0.41", features = ["bundled"] }
+sysinfo = { version = "0.40", default-features = false, features = ["network"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_NetworkManagement_IpHelper",
+    "Win32_Networking_WinSock",
+    "Win32_System_Threading",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+[profile.release]
+opt-level = 3
+lto = true
+strip = true
