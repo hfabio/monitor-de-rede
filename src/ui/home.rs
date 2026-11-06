@@ -4,42 +4,24 @@ use super::*;
 
 /// Resumo geral em linguagem comum: (nível, título, frase).
 pub fn overall(rows: &[Row]) -> (Level, &'static str, String) {
-    // Endereço que nunca resolveu é erro de configuração; aparece no cartão, mas não muda o resumo.
-    let st: Vec<(Level, &Row)> = rows.iter().filter(|r| !(r.error.is_some() && !r.recent.has_replies())).map(|r| (r.status().0, r)).collect();
-    if st.is_empty() {
-        return (Level::Waiting, "Nenhum endereço ativo", "Adicione endereços em Configurações.".into());
-    }
-    if st.iter().all(|(l, _)| *l == Level::Waiting) {
-        return (Level::Waiting, "Verificando a conexão…", "Os primeiros resultados aparecem em alguns segundos.".into());
-    }
-    let local_bad = st.iter().find(|(l, r)| r.local && *l == Level::Bad);
-    let net: Vec<&(Level, &Row)> = st.iter().filter(|(_, r)| !r.local).collect();
-    let net_down = !net.is_empty() && net.iter().all(|(l, r)| *l == Level::Bad && (r.in_outage || !r.recent.has_replies()));
-
-    if let Some((_, r)) = local_bad {
-        return (Level::Bad, "Problema na rede da casa", format!("\"{}\" não está respondendo bem. Verifique o cabo, o Deco ou o roteador.", r.name));
-    }
-    if net_down {
-        return (Level::Bad, "Sem internet", "A rede da casa funciona, mas a internet caiu. Provavelmente é a operadora.".into());
-    }
-    let net_bad: Vec<&&(Level, &Row)> = net.iter().filter(|(l, _)| *l == Level::Bad).collect();
-    if let Some((_, r)) = net_bad.first() {
-        if net_bad.len() * 2 > net.len() {
-            return (Level::Bad, "Internet instável", "Vários endereços com problemas. Chamadas de vídeo podem travar ou cair.".into());
-        }
-        return (Level::Slow, "Um endereço com problemas", format!("\"{}\" não está respondendo bem; o resto da internet está normal.", r.name));
-    }
-    if st.iter().any(|(l, _)| *l == Level::Slow) {
-        return (Level::Slow, "Internet um pouco lenta", "Dá para usar, mas chamadas de vídeo podem travar um pouco.".into());
-    }
-    (Level::Good, "Sua internet está boa", "Pode atender tranquila. Se algo mudar, esta tela avisa.".into())
+    let views: Vec<crate::assess::View> = rows
+        .iter()
+        .map(|r| crate::assess::View {
+            name: &r.name,
+            local: r.local,
+            level: r.status().0,
+            has_replies: r.recent.has_replies(),
+            in_outage: r.in_outage,
+            config_error: r.error.is_some() && !r.recent.has_replies(),
+        })
+        .collect();
+    crate::assess::overall(&views)
 }
 
 impl App {
     pub(super) fn ui_home(&mut self, ui: &mut egui::Ui) {
         let (rows, _) = self.snapshot();
         let (level, title, subtitle) = overall(&rows);
-        let color = level.color();
 
         egui::ScrollArea::vertical().show(ui, |ui| {
             ui.vertical_centered(|ui| {
@@ -82,7 +64,6 @@ impl App {
                 }
             });
         });
-        let _ = color;
     }
 }
 

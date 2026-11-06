@@ -193,6 +193,8 @@ pub struct Shared {
     /// Mais novos primeiro.
     pub events: VecDeque<Event>,
     pub started: f64,
+    /// Limite de pico atual (para estatísticas fora das threads).
+    pub spike_ms: f64,
     history: Sender<Msg>,
 }
 
@@ -221,7 +223,7 @@ impl Monitor {
             VecDeque::new()
         };
         let mut m = Self {
-            shared: Arc::new(Mutex::new(Shared { targets: Vec::new(), events, started: now_secs(), history })),
+            shared: Arc::new(Mutex::new(Shared { targets: Vec::new(), events, started: now_secs(), spike_ms: cfg.spike_ms as f64, history })),
             stops: Vec::new(),
         };
         m.apply(cfg);
@@ -238,6 +240,7 @@ impl Monitor {
 
         {
             let mut sh = self.shared.lock().unwrap();
+            sh.spike_ms = cfg.spike_ms as f64;
             let _ = sh.history.send(Msg::Settings { enabled: cfg.history_enabled, retention_days: cfg.retention_days });
             let mut old = std::mem::take(&mut sh.targets);
             for t in &active {

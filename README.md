@@ -60,6 +60,50 @@ Não precisa instalar nada.
 
 As sugestões de jogos usam `https://dynamodb.sa-east-1.amazonaws.com/ping` (AWS São Paulo). Esse endereço dá uma boa aproximação da latência até os servidores brasileiros.
 
+## Integração com IA (MCP)
+
+O app também funciona como servidor [MCP](https://modelcontextprotocol.io). Assim, assistentes como Claude, Codex, Antigravity e Cursor podem consultar a rede, e você pode perguntar coisas como "minha internet caiu hoje de manhã?" ou "o servidor do jogo está com perda agora?".
+
+Basta rodar o executável com o argumento `mcp`, que inicia o servidor por stdio, sem janela. A aba **Configurações** mostra os trechos prontos, com o caminho certo do executável, e um botão para copiar.
+
+**Claude Code**
+
+```bash
+claude mcp add monitor-rede -- "C:\caminho\MonitorRede-windows-x64.exe" mcp
+```
+
+**Claude Desktop, Antigravity, Cursor** (seção `mcpServers` do arquivo de configuração):
+
+```json
+{
+  "mcpServers": {
+    "monitor-rede": { "command": "C:\\caminho\\MonitorRede-windows-x64.exe", "args": ["mcp"] }
+  }
+}
+```
+
+**Codex** (`~/.codex/config.toml`):
+
+```toml
+[mcp_servers.monitor-rede]
+command = 'C:\caminho\MonitorRede-windows-x64.exe'
+args = ["mcp"]
+```
+
+No macOS, o comando fica `"/Applications/Monitor de Rede.app/Contents/MacOS/monitor-rede"`.
+
+### Ferramentas
+
+| Ferramenta | O que faz |
+|---|---|
+| `get_status` | situação atual: veredito em linguagem simples, latência/jitter/perda de cada endereço no último minuto e nos últimos 5 minutos, banda atual, aplicativos que mais usam a rede e eventos recentes |
+| `get_events` | quedas, retornos, picos, perdas e erros de DNS de um período, com filtros por tipo e por endereço |
+| `get_history` | resumo de um período por endereço (perda, média, melhor e pior latência, jitter), os piores minutos e uma série de até 60 pontos |
+| `probe_host` | testa um endereço na hora (ping, `gateway`, `https://…` ou `host:porta`) |
+| `list_targets` | endereços e opções configurados |
+
+O status ao vivo vem do app aberto, que grava `status.json` a cada 2 segundos. O histórico, os eventos e o `probe_host` funcionam mesmo com o app fechado.
+
 ## Dados
 
 Ficam na pasta de dados do usuário, em `MonitorRede/`:
@@ -71,6 +115,7 @@ Ficam na pasta de dados do usuário, em `MonitorRede/`:
 | Linux | `~/.local/share/MonitorRede` |
 
 - **`config.json`:** endereços e opções.
+- **`status.json`:** status ao vivo, usado pelo MCP.
 - **`historico.sqlite`:** tabela `minutos`, com um resumo por minuto de cada endereço (enviados, perdidos, mínimo/média/máximo, jitter e picos), e tabela `eventos`.
 
 ## Compilar
@@ -107,7 +152,7 @@ MONITOR_REDE_SHOTS=/tmp/prints cargo run
 O workflow [`.github/workflows/build.yml`](.github/workflows/build.yml) compila e testa nos três sistemas a cada push. Ao enviar uma tag `v*`, ele também publica os executáveis numa Release:
 
 ```bash
-git tag v0.2.0 && git push origin v0.2.0
+git tag v0.3.0 && git push origin v0.3.0
 ```
 
 ## Estrutura
@@ -119,4 +164,7 @@ git tag v0.2.0 && git push origin v0.2.0
 | `src/history.rs` | histórico em SQLite |
 | `src/netusage.rs` | banda total e banda por aplicativo (Windows) |
 | `src/autostart.rs` | iniciar com o sistema |
+| `src/assess.rs` | avaliação em linguagem simples (verde, amarelo, vermelho) |
+| `src/status.rs` | status ao vivo em JSON |
+| `src/mcp.rs` | servidor MCP por stdio |
 | `src/ui/` | telas, feitas com [egui](https://github.com/emilk/egui) |

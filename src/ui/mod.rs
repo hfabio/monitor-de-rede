@@ -46,10 +46,7 @@ pub const SERIES: [Color32; 10] = [
     Color32::from_rgb(0xe8, 0x79, 0xf9),
 ];
 
-/// Limites da legenda da tela Início.
-pub const GOOD_MS: f64 = 80.0;
-pub const BAD_MS: f64 = 1000.0;
-pub const BAD_LOSS_PCT: f64 = 5.0;
+pub use crate::assess::{Level, BAD_LOSS_PCT, GOOD_MS};
 
 fn apply_theme(ctx: &egui::Context) {
     let mut v = egui::Visuals::dark();
@@ -98,14 +95,6 @@ enum Chart {
     Latency,
     Jitter,
     Loss,
-}
-
-#[derive(Clone, Copy, PartialEq, Debug)]
-pub enum Level {
-    Waiting,
-    Good,
-    Slow,
-    Bad,
 }
 
 impl Level {
@@ -159,22 +148,7 @@ pub struct Row {
 
 impl Row {
     pub fn status(&self) -> (Level, &'static str) {
-        let s = &self.recent;
-        if s.sent == 0 {
-            (Level::Waiting, "Aguardando…")
-        } else if self.error.is_some() && !s.has_replies() {
-            (Level::Bad, "Endereço não encontrado")
-        } else if self.in_outage || !s.has_replies() {
-            (Level::Bad, "Sem resposta")
-        } else if s.loss_pct() > BAD_LOSS_PCT {
-            (Level::Bad, "Perdendo pacotes")
-        } else if s.avg > BAD_MS {
-            (Level::Bad, "Muito lento")
-        } else if s.avg > GOOD_MS {
-            (Level::Slow, "Um pouco lento")
-        } else {
-            (Level::Good, "Funcionando")
-        }
+        crate::assess::target_status(&self.recent, self.error.is_some(), self.in_outage)
     }
 }
 
@@ -183,11 +157,13 @@ impl App {
         apply_theme(&cc.egui_ctx);
         let cfg = Config::load();
         let monitor = Monitor::new(&cfg);
+        let usage = netusage::spawn();
+        crate::status::spawn_writer(monitor.shared.clone(), usage.clone());
         Self {
             draft: cfg.clone(),
             cfg,
             monitor,
-            usage: netusage::spawn(),
+            usage,
             view: View::Home,
             window_secs: 300.0,
             chart: Chart::Latency,

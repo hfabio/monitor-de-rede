@@ -96,3 +96,42 @@ fn run(rx: Receiver<Msg>, mut enabled: bool, mut retention: u32) {
         }
     }
 }
+
+/// Uma linha da tabela `minutos`.
+pub struct MinuteRow {
+    pub t: i64,
+    pub name: String,
+    pub host: String,
+    pub sent: i64,
+    pub lost: i64,
+    pub min: f64,
+    pub avg: f64,
+    pub max: f64,
+    pub jitter: f64,
+    pub spikes: i64,
+}
+
+/// Resumos por minuto desde `since` (unix), em ordem de tempo.
+/// `target` filtra por nome ou endereço (sem diferenciar maiúsculas).
+pub fn load_minutes(since: i64, target: Option<&str>) -> rusqlite::Result<Vec<MinuteRow>> {
+    let db = open()?;
+    let mut st = db.prepare(
+        "SELECT t, nome, host, enviados, perdidos, min_ms, media_ms, max_ms, jitter_ms, picos FROM minutos
+         WHERE t >= ?1 AND (?2 IS NULL OR lower(nome) = lower(?2) OR lower(host) = lower(?2)) ORDER BY t",
+    )?;
+    let rows = st.query_map(params![since, target], |r| {
+        Ok(MinuteRow {
+            t: r.get(0)?,
+            name: r.get(1)?,
+            host: r.get(2)?,
+            sent: r.get(3)?,
+            lost: r.get(4)?,
+            min: r.get(5)?,
+            avg: r.get(6)?,
+            max: r.get(7)?,
+            jitter: r.get(8)?,
+            spikes: r.get(9)?,
+        })
+    })?;
+    rows.collect()
+}

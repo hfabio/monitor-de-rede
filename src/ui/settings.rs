@@ -14,6 +14,8 @@ impl App {
                 egui::ScrollArea::vertical().id_salt("enderecos").show(ui, |ui| {
                     ui.set_width(left_w);
                     self.targets_editor(ui, left_w);
+                    ui.add_space(14.0);
+                    self.mcp_card(ui);
                 });
             });
             ui.allocate_ui_with_layout(egui::vec2(right_w, h), egui::Layout::top_down(egui::Align::Min), |ui| self.test_panel(ui, right_w));
@@ -157,6 +159,50 @@ impl App {
             if ui.add(egui::Button::new(RichText::new("Restaurar endereços padrão").size(12.0).color(MUTED)).frame(false)).clicked() {
                 self.draft.targets = crate::config::Config::default().targets;
             }
+        });
+    }
+
+    fn mcp_card(&mut self, ui: &mut egui::Ui) {
+        use crate::mcp::setup;
+        card(ui, BORDER, |ui| {
+            ui.set_width(ui.available_width());
+            ui.label(RichText::new("Integração com IA (MCP)").size(14.0).strong());
+            ui.label(
+                RichText::new("Deixa o Claude, Codex, Antigravity, Cursor e outros assistentes consultarem o status, os eventos e o histórico da rede, e testarem endereços.")
+                    .size(12.0)
+                    .color(MUTED),
+            );
+            ui.add_space(4.0);
+            let mut copied = None;
+            let items = [
+                ("Claude Code", "rode no terminal", setup::claude_code()),
+                ("Claude Desktop · Antigravity · Cursor", "cole em mcpServers do arquivo de configuração", setup::json()),
+                ("Codex", "cole em ~/.codex/config.toml", setup::codex()),
+            ];
+            for (name, how, text) in items {
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new(name).size(13.0).strong());
+                    ui.label(RichText::new(how).size(12.0).color(DIM));
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui.button(RichText::new("Copiar").size(12.0)).clicked() {
+                            ui.ctx().copy_text(text.clone());
+                            copied = Some(name);
+                        }
+                    });
+                });
+                egui::Frame::new().fill(INPUT).corner_radius(6.0).inner_margin(8).show(ui, |ui| {
+                    ui.set_width(ui.available_width());
+                    ui.label(RichText::new(&text).size(11.0).monospace().color(MUTED));
+                });
+            }
+            if let Some(n) = copied {
+                self.message = Some((format!("Configuração para {n} copiada."), true));
+            }
+            ui.label(
+                RichText::new("O status ao vivo exige o Monitor aberto; histórico, eventos e testes funcionam mesmo com ele fechado.")
+                    .size(11.0)
+                    .color(DIM),
+            );
         });
     }
 }
