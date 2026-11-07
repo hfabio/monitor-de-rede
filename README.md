@@ -88,6 +88,10 @@ O APK é uma versão simplificada, boa para andar pela casa com o celular e ver 
 
 **Instalar:** baixe o `MonitorRede-android-arm64.apk` no celular e abra o arquivo. O Android vai pedir para **permitir instalar apps desconhecidos** para o navegador ou o gerenciador de arquivos. Permita e toque em **Instalar**. O app não está na Play Store.
 
+| Início | Este celular | PC da casa | Ajustes |
+|---|---|---|---|
+| <img src="docs/android-1-home.png" width="200" alt="Início"> | <img src="docs/android-2-phone.png" width="200" alt="Este celular"> | <img src="docs/android-3-pc.png" width="200" alt="PC da casa"> | <img src="docs/android-4-settings.png" width="200" alt="Ajustes"> |
+
 - **Mede só com o app aberto.** Não roda em segundo plano nem manda notificações. Ao sair (botão Voltar na tela inicial), as medições param.
 - **Início:** veredito da casa (este celular e o PC), dois cartões com a latência de cada um e os últimos avisos dos dois.
 - **Este celular:** gráfico dos últimos 5 minutos e um cartão por endereço, com as mesmas cores do desktop. O botão **+ Adicionar endereço** abre um formulário com sugestões; o **×** remove.
