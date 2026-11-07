@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e1014">
+<title>Monitor de Rede</title>
+<style>
+  :root {
+    --bg: #14171c; --top: #0e1014; --panel: #181c22; --border: #262b33;
+    --text: #e6e9ee; --muted: #a9b0bb; --dim: #8b93a0;
+    --accent: #7cc4ff; --green: #4ade80; --amber: #f5a524; --red: #f87171;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  header { background: var(--top); padding: 12px 16px; color: var(--muted);
+    display: flex; justify-content: space-between; align-items: center;
+    padding-top: max(12px, env(safe-area-inset-top)); }
+  header small { color: var(--dim); font-size: 12px; }
+  main { max-width: 720px; margin: 0 auto; padding: 14px 14px 32px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px; margin-bottom: 12px; }
+  .hero { border-width: 2px; display: flex; gap: 12px; align-items: flex-start; }
+  .dot { width: 14px; height: 14px; border-radius: 50%; flex: none; margin-top: 7px; background: var(--dim); }
+  .hero h1 { margin: 0; font-size: 22px; line-height: 1.25; }
+  .hero p { margin: 4px 0 0; color: var(--muted); }
+  .offline { display: none; background: #3a1d20; border: 1px solid var(--red); color: var(--red);
+    border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; font-weight: 600; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 12px; }
+  .grid .card { margin: 0; }
+  .t-name { font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .t-name .dot { width: 10px; height: 10px; margin: 0; }
+  .t-status { font-size: 13px; margin: 2px 0 6px; }
+  .t-big { font-size: 26px; font-weight: 700; }
+  .t-big span { font-size: 13px; font-weight: 400; color: var(--dim); }
+  .t-meta { font-size: 12px; color: var(--muted); display: flex; gap: 12px; }
+  svg.spark { width: 100%; height: 40px; display: block; margin-top: 8px; }
+  .label { font-size: 11px; letter-spacing: .04em; color: var(--dim); text-transform: uppercase; margin-bottom: 6px; }
+  .usage { display: flex; gap: 24px; }
+  .usage b { font-size: 22px; }
+  .usage div span { color: var(--dim); font-size: 13px; }
+  ul.events { list-style: none; margin: 0; padding: 0; }
+  ul.events li { padding: 8px 0; border-top: 1px solid var(--border); font-size: 13px; }
+  ul.events li:first-child { border-top: 0; }
+  .ev-time { color: var(--dim); margin-right: 6px; }
+  .ev-detail { color: var(--muted); }
+  .empty { color: var(--dim); font-size: 13px; }
+</style>
+</head>
+<body>
+<header><span>Monitor de Rede</span><small id="updated">conectando…</small></header>
+<main>
+  <div class="offline" id="offline">Sem conexão com o PC</div>
+  <div class="card hero" id="hero">
+    <div class="dot" id="hero-dot"></div>
+    <div><h1 id="title">Carregando…</h1><p id="detail"></p></div>
+  </div>
+  <div class="grid" id="targets"></div>
+  <div class="card">
+    <div class="label">Uso da rede agora</div>
+    <div class="usage">
+      <div><span>↓ Download</span><br><b id="down">–</b> <span>Mbps</span></div>
+      <div><span>↑ Upload</span><br><b id="up">–</b> <span>Mbps</span></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="label">Últimos eventos</div>
+    <ul class="events" id="events"><li class="empty">Nenhum evento.</li></ul>
+  </div>
+</main>
+<script>
+const COLORS = { waiting: "#8b93a0", good: "#4ade80", slow: "#f5a524", bad: "#f87171" };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const num = (v, d) => v == null ? "–" : (v < 10 && d ? v.toFixed(1) : Math.round(v)).toString().replace(".", ",");
+
+// Linha de latência (até 5 min); perdas viram marcas vermelhas na base.
+function spark(series, color) {
+  const W = 300, H = 40;
+  if (!series || !series.length) return "";
+  const vals = series.map(p => p[1]).filter(v => v != null);
+  const max = Math.max(20, ...vals) * 1.1;
+  const span = Math.max(60, -series[0][0]);
+  const x = t => (W * (t + span) / span).toFixed(1);
+  const y = v => (H - 2 - (H - 4) * v / max).toFixed(1);
+  let d = "", pen = false, marks = "";
+  for (const [t, v] of series) {
+    if (v == null) { pen = false; marks += `<rect x="${x(t)}" y="${H - 3}" width="2" height="3" fill="#f87171"/>`; continue; }
+    d += (pen ? "L" : "M") + x(t) + " " + y(v);
+    pen = true;
+  }
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">` +
+    `<path d="${d}" fill="none" stroke="${color}" stroke-width="1.5" vector-effect="non-scaling-stroke"/>${marks}</svg>`;
+}
+
+function render(s) {
+  const o = s.overall || {};
+  const c = COLORS[o.status] || COLORS.waiting;
+  $("title").textContent = o.title || "";
+  $("detail").textContent = o.message || "";
+  $("hero-dot").style.background = c;
+  $("hero").style.borderColor = c;
+
+  $("targets").innerHTML = (s.targets || []).map(t => {
+    const tc = COLORS[t.status] || COLORS.waiting;
+    const m = t.last_1min || {};
+    return `<div class="card" style="border-color:${tc}55">
+      <div class="t-name"><span class="dot" style="background:${tc}"></span>${esc(t.name)}</div>
+      <div class="t-status" style="color:${tc}">${esc(t.status_label)}</div>
+      <div class="t-big">${num(t.last_ms, true)} <span>ms agora</span></div>
+      <div class="t-meta"><span>média ${num(m.avg_ms, true)} ms</span><span>perda ${num(m.loss_pct, true)}%</span></div>
+      ${spark(t.series, tc)}
+    </div>`;
+  }).join("") || `<div class="card empty">Nenhum endereço ativo.</div>`;
+
+  const u = s.network_usage || {};
+  $("down").textContent = num(u.download_mbps, true);
+  $("up").textContent = num(u.upload_mbps, true);
+
+  const ev = (s.recent_events || []).slice(0, 10);
+  $("events").innerHTML = ev.length ? ev.map(e => {
+    const t = new Date(e.time);
+    const hh = isNaN(t) ? "" : t.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    return `<li><span class="ev-time">${esc(hh)}</span><b>${esc(e.label)}</b> · ${esc(e.target)} <span class="ev-detail">${esc(e.detail)}</span></li>`;
+  }).join("") : `<li class="empty">Nenhum evento.</li>`;
+
+  $("updated").textContent = "atualizado " + new Date().toLocaleTimeString("pt-BR");
+}
+
+async function tick() {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 4000);
+    const r = await fetch("/api/status", { cache: "no-store", signal: ctrl.signal });
+    clearTimeout(timer);
+    if (!r.ok) throw new Error(r.status);
+    render(await r.json());
+    $("offline").style.display = "none";
+  } catch (e) {
+    $("offline").style.display = "block";
+    $("updated").textContent = "sem conexão";
+  }
+  setTimeout(tick, 2000);
+}
+tick();
+</script>
+</body>
+</html>

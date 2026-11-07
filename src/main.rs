@@ -11,6 +11,7 @@ mod probe;
 mod status;
 mod tray;
 mod ui;
+mod web;
 
 fn main() -> eframe::Result {
     // `monitor-rede mcp`: servidor MCP por stdio, sem janela.

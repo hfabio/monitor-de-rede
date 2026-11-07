@@ -71,6 +71,16 @@ No Linux, a bandeja exigiria GTK. Lá, fechar a janela encerra o app.
 
 As sugestões de jogos usam `https://dynamodb.sa-east-1.amazonaws.com/ping` (AWS São Paulo). Esse endereço dá uma boa aproximação da latência até os servidores brasileiros.
 
+## Painel no celular
+
+Com o app aberto no PC, dá para acompanhar a rede pelo navegador do celular (Android ou iPhone), no mesmo Wi-Fi. A página mostra o status geral, um cartão por endereço com a latência dos últimos minutos, a banda atual e os últimos eventos, e se atualiza a cada 2 segundos.
+
+- A aba **Configurações** mostra o endereço para abrir no celular, como `http://192.168.68.11:8080`, com um botão para copiar.
+- Dá para desligar o painel ou trocar a porta (padrão 8080) no cartão **Painel no celular**.
+- É só leitura: pelo celular não dá para mudar a configuração nem rodar testes.
+- **Windows:** na primeira vez, o Firewall pode pedir permissão. Clique em **Permitir acesso** para redes privadas.
+- Se a página mostrar "Sem conexão com o PC", confira se o app está aberto e se o celular está no mesmo Wi-Fi.
+
 ## Integração com IA (MCP)
 
 O app também funciona como servidor [MCP](https://modelcontextprotocol.io). Assim, assistentes como Claude, Codex, Antigravity e Cursor podem consultar a rede, e você pode perguntar coisas como "minha internet caiu hoje de manhã?" ou "o servidor do jogo está com perda agora?".
@@ -179,4 +189,5 @@ git tag v0.3.0 && git push origin v0.3.0
 | `src/status.rs` | status ao vivo em JSON |
 | `src/mcp.rs` | servidor MCP por stdio |
 | `src/tray.rs` | ícone na bandeja do sistema |
+| `src/web.rs` | painel no celular: servidor HTTP só leitura e a página (`src/web.html`) |
 | `src/ui/` | telas, feitas com [egui](https://github.com/emilk/egui) |

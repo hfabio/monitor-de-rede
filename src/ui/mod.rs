@@ -124,6 +124,9 @@ pub struct App {
     shots: Option<shots::Shots>,
     tray: Option<crate::tray::Tray>,
     tray_updated: std::time::Instant,
+    /// Painel no celular (None = desligado ou porta ocupada).
+    web: Option<crate::web::Server>,
+    web_error: Option<String>,
 }
 
 /// Cópia do estado de um alvo para desenhar sem segurar o lock.
@@ -162,7 +165,7 @@ impl App {
         let usage = netusage::spawn();
         crate::status::spawn_writer(monitor.shared.clone(), usage.clone());
         let tray = crate::tray::install(cc, monitor.shared.clone(), usage.clone());
-        Self {
+        let mut app = Self {
             draft: cfg.clone(),
             cfg,
             monitor,
@@ -178,6 +181,27 @@ impl App {
             shots: shots::Shots::from_env(),
             tray,
             tray_updated: std::time::Instant::now(),
+            web: None,
+            web_error: None,
+        };
+        app.restart_web();
+        app
+    }
+
+    /// (Re)inicia o painel no celular conforme a configuração.
+    fn restart_web(&mut self) {
+        if self.web.as_ref().is_some_and(|w| self.cfg.web_enabled && w.port() == self.cfg.web_port) {
+            return;
+        }
+        self.web = None; // para o anterior e libera a porta
+        self.web_error = None;
+        if !self.cfg.web_enabled {
+            return;
+        }
+        let (shared, usage) = (self.monitor.shared.clone(), self.usage.clone());
+        match crate::web::Server::start(self.cfg.web_port, Box::new(move || crate::web::status(&shared, &usage))) {
+            Ok(s) => self.web = Some(s),
+            Err(e) => self.web_error = Some(format!("Não consegui abrir a porta {}: {e}", self.cfg.web_port)),
         }
     }
 
@@ -255,6 +279,7 @@ impl App {
         }
         self.cfg = self.draft.clone();
         self.monitor.apply(&self.cfg);
+        self.restart_web();
         self.message = Some(match self.cfg.save() {
             Ok(()) => ("Configuração salva e aplicada.".into(), true),
             Err(e) => (format!("Aplicado, mas não consegui salvar: {e}"), false),

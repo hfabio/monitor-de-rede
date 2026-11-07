@@ -16,6 +16,8 @@ impl App {
                     self.targets_editor(ui, left_w);
                     ui.add_space(14.0);
                     self.mcp_card(ui);
+                    ui.add_space(14.0);
+                    self.web_card(ui);
                 });
             });
             ui.allocate_ui_with_layout(egui::vec2(right_w, h), egui::Layout::top_down(egui::Align::Min), |ui| self.test_panel(ui, right_w));
@@ -203,6 +205,63 @@ impl App {
                     .size(11.0)
                     .color(DIM),
             );
+        });
+    }
+
+    fn web_card(&mut self, ui: &mut egui::Ui) {
+        card(ui, BORDER, |ui| {
+            ui.set_width(ui.available_width());
+            ui.label(RichText::new("Painel no celular").size(14.0).strong());
+            ui.label(
+                RichText::new("Veja o status da rede no navegador do celular (Android ou iPhone) conectado ao mesmo Wi-Fi. Só leitura: pelo celular não dá para mudar nada.")
+                    .size(12.0)
+                    .color(MUTED),
+            );
+            ui.add_space(4.0);
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut self.draft.web_enabled, "Ativar painel");
+                ui.add_space(12.0);
+                ui.label(RichText::new("Porta").size(13.0));
+                ui.add_enabled(self.draft.web_enabled, egui::DragValue::new(&mut self.draft.web_port).range(1024..=65535));
+            });
+            if self.draft.web_enabled != self.cfg.web_enabled || self.draft.web_port != self.cfg.web_port {
+                ui.label(RichText::new("Clique em Salvar e aplicar para valer.").size(11.0).color(AMBER));
+            }
+
+            if let Some(err) = self.web_error.clone() {
+                ui.label(RichText::new(err).size(12.0).color(RED));
+                ui.label(RichText::new("Outro programa deve estar usando essa porta. Troque a porta e salve.").size(11.0).color(DIM));
+                if ui.button(RichText::new("Tentar de novo").size(12.0)).clicked() {
+                    self.restart_web();
+                }
+            } else if let Some(port) = self.web.as_ref().map(|w| w.port()) {
+                let url = match crate::web::lan_ip() {
+                    Some(ip) => format!("http://{ip}:{port}"),
+                    None => format!("http://localhost:{port}"),
+                };
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new("Abra no celular").size(13.0).strong());
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui.button(RichText::new("Copiar").size(12.0)).clicked() {
+                            ui.ctx().copy_text(url.clone());
+                            self.message = Some(("Endereço do painel copiado.".into(), true));
+                        }
+                    });
+                });
+                egui::Frame::new().fill(INPUT).corner_radius(6.0).inner_margin(8).show(ui, |ui| {
+                    ui.set_width(ui.available_width());
+                    ui.label(RichText::new(&url).size(14.0).monospace().color(ACCENT));
+                });
+                if cfg!(windows) {
+                    ui.label(
+                        RichText::new("Na primeira vez, o Firewall do Windows pode pedir permissão: clique em \"Permitir acesso\" para redes privadas. Se não abrir no celular, confira se a rede do PC está como privada.")
+                            .size(11.0)
+                            .color(DIM),
+                    );
+                }
+            } else {
+                ui.label(RichText::new("Painel desligado.").size(12.0).color(DIM));
+            }
         });
     }
 }

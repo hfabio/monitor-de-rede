@@ -31,6 +31,9 @@ pub struct Config {
     /// Guarda resumos por minuto e eventos em SQLite.
     pub history_enabled: bool,
     pub retention_days: u32,
+    /// Painel no celular: servidor HTTP só leitura na rede de casa.
+    pub web_enabled: bool,
+    pub web_port: u16,
 }
 
 impl Default for Config {
@@ -47,6 +50,8 @@ impl Default for Config {
             loss_alert_pct: 2.0,
             history_enabled: true,
             retention_days: 30,
+            web_enabled: true,
+            web_port: 8080,
         }
     }
 }
