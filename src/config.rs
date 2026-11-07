@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::sync::OnceLock;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Target {
@@ -56,8 +57,17 @@ impl Default for Config {
     }
 }
 
+/// Pasta de dados definida pela plataforma (no Android, a pasta interna do app,
+/// porque lá `dirs::data_dir()` não existe).
+static DATA_DIR: OnceLock<PathBuf> = OnceLock::new();
+
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+pub fn set_data_dir(dir: PathBuf) {
+    let _ = DATA_DIR.set(dir);
+}
+
 pub fn app_dir() -> PathBuf {
-    dirs::data_dir().unwrap_or_else(|| PathBuf::from(".")).join("MonitorRede")
+    DATA_DIR.get().cloned().or_else(dirs::data_dir).unwrap_or_else(|| PathBuf::from(".")).join("MonitorRede")
 }
 
 fn config_path() -> PathBuf {

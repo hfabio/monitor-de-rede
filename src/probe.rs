@@ -1,6 +1,7 @@
 //! Medição de latência de um alvo.
 //! - ICMP (ping) para IPs e domínios. No Windows usa IcmpSendEcho, sem
-//!   precisar de administrador; em outros sistemas usa o comando `ping`.
+//!   precisar de administrador; no Android usa socket ICMP sem privilégio;
+//!   em outros sistemas usa o comando `ping`.
 //! - TCP para `https://…`, `http://…` e `host:porta`: mede o tempo do
 //!   handshake, útil para servidores que bloqueiam ping.
 
@@ -182,28 +183,34 @@ pub use win::default_gateway;
 
 // ------------------------------------------------------------ macOS / Linux
 
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "android")))]
 struct Pinger;
 
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "android")))]
 impl Pinger {
     fn new() -> Self {
         Pinger
     }
 
     fn ping(&mut self, ip: Ipv4Addr, timeout: Duration) -> Option<f64> {
-        let ms = timeout.as_millis().max(1);
-        // macOS: -W em ms; Linux: -W em segundos.
-        let wait = if cfg!(target_os = "macos") { ms.to_string() } else { ms.div_ceil(1000).to_string() };
-        let out = std::process::Command::new("ping")
-            .args(["-n", "-c", "1", "-W", &wait, &ip.to_string()])
-            .output()
-            .ok()?;
-        let text = String::from_utf8_lossy(&out.stdout);
-        let rest = &text[text.find("time=")? + 5..];
-        let end = rest.find(|c: char| !(c.is_ascii_digit() || c == '.'))?;
-        rest[..end].parse().ok()
+        ping_command(ip, timeout)
     }
+}
+
+/// Usa o comando `ping` do sistema e lê o "time=" da resposta.
+#[cfg(not(windows))]
+fn ping_command(ip: Ipv4Addr, timeout: Duration) -> Option<f64> {
+    let ms = timeout.as_millis().max(1);
+    // macOS: -W em ms; Linux e Android: -W em segundos.
+    let wait = if cfg!(target_os = "macos") { ms.to_string() } else { ms.div_ceil(1000).to_string() };
+    let out = std::process::Command::new("ping")
+        .args(["-n", "-c", "1", "-W", &wait, &ip.to_string()])
+        .output()
+        .ok()?;
+    let text = String::from_utf8_lossy(&out.stdout);
+    let rest = &text[text.find("time=")? + 5..];
+    let end = rest.find(|c: char| !(c.is_ascii_digit() || c == '.'))?;
+    rest[..end].parse().ok()
 }
 
 #[cfg(target_os = "macos")]
@@ -214,7 +221,7 @@ pub fn default_gateway() -> Option<Ipv4Addr> {
         .find_map(|l| l.trim().strip_prefix("gateway:").and_then(|g| g.trim().parse().ok()))
 }
 
-#[cfg(all(unix, not(target_os = "macos")))]
+#[cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))]
 pub fn default_gateway() -> Option<Ipv4Addr> {
     // /proc/net/route: destino 00000000 = rota padrão; gateway em hex little-endian.
     let text = std::fs::read_to_string("/proc/net/route").ok()?;
@@ -227,6 +234,73 @@ pub fn default_gateway() -> Option<Ipv4Addr> {
             None
         }
     })
+}
+
+// ------------------------------------------------------------------ Android
+
+// O Android libera ICMP sem root por socket "datagrama" (o mesmo que o
+// /system/bin/ping usa). O roteador vem do sistema (ConnectivityManager),
+// porque /proc/net/route é bloqueado para apps desde o Android 10.
+#[cfg(target_os = "android")]
+pub use crate::android::default_gateway;
+
+#[cfg(target_os = "android")]
+use droid::Pinger;
+
+#[cfg(target_os = "android")]
+mod droid {
+    use super::*;
+    use socket2::{Domain, Protocol, SockAddr, Socket, Type};
+    use std::io::Read;
+
+    pub struct Pinger {
+        sock: Option<Socket>,
+        seq: u16,
+    }
+
+    impl Pinger {
+        pub fn new() -> Self {
+            Self { sock: Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::ICMPV4)).ok(), seq: 0 }
+        }
+
+        pub fn ping(&mut self, ip: Ipv4Addr, timeout: Duration) -> Option<f64> {
+            let Some(sock) = &self.sock else {
+                // Sem socket ICMP (aparelho com restrição): tenta o comando ping.
+                return ping_command(ip, timeout);
+            };
+            self.seq = self.seq.wrapping_add(1);
+            let seq = self.seq;
+            let packet = echo_request(seq);
+            let start = Instant::now();
+            sock.send_to(&packet, &SockAddr::from(SocketAddr::new(IpAddr::V4(ip), 0))).ok()?;
+            let mut buf = [0u8; 1500];
+            loop {
+                let left = timeout.checked_sub(start.elapsed()).filter(|d| !d.is_zero())?;
+                sock.set_read_timeout(Some(left)).ok()?;
+                let n = (&*sock).read(&mut buf).ok()?;
+                // Resposta sem cabeçalho IP: tipo 0 (echo reply), sequência no byte 6..8.
+                // O identificador é trocado pelo sistema e filtrado por socket.
+                if n >= 8 && buf[0] == 0 && u16::from_be_bytes([buf[6], buf[7]]) == seq {
+                    return Some(start.elapsed().as_secs_f64() * 1000.0);
+                }
+            }
+        }
+    }
+
+    fn echo_request(seq: u16) -> Vec<u8> {
+        let mut p = vec![8u8, 0, 0, 0, 0, 0];
+        p.extend_from_slice(&seq.to_be_bytes());
+        p.extend_from_slice(&[0x61u8; 32]);
+        let mut sum = 0u32;
+        for c in p.chunks(2) {
+            sum += u16::from_be_bytes([c[0], *c.get(1).unwrap_or(&0)]) as u32;
+        }
+        while sum > 0xffff {
+            sum = (sum & 0xffff) + (sum >> 16);
+        }
+        p[2..4].copy_from_slice(&(!(sum as u16)).to_be_bytes());
+        p
+    }
 }
 
 #[cfg(test)]

@@ -1,6 +1,6 @@
 # Monitor de Rede
 
-App de desktop (Windows, macOS e Linux) que mede continuamente a latência, o jitter e a perda de pacotes até vários endereços, e mostra em linguagem simples se a internet está boa para chamadas de vídeo e jogos.
+App de desktop (Windows, macOS e Linux), com uma versão simplificada para Android, que mede continuamente a latência, o jitter e a perda de pacotes até vários endereços, e mostra em linguagem simples se a internet está boa para chamadas de vídeo e jogos.
 
 ![Tela inicial](docs/1-inicio.png)
 
@@ -13,8 +13,9 @@ Baixe a versão mais recente em **[Releases](https://github.com/hfabio/monitor-d
 | Windows 10/11 (64 bits) | `MonitorRede-windows-x64.exe` |
 | macOS (Apple Silicon e Intel) | `MonitorRede-macos-universal.zip` |
 | Linux (x64) | `MonitorRede-linux-x64.tar.gz` |
+| Android 8 ou mais novo (64 bits) | `MonitorRede-android-arm64.apk` |
 
-Não precisa instalar nada.
+No computador, não precisa instalar nada. No Android, veja [Android](#android).
 
 - **Windows:** se o SmartScreen avisar "aplicativo não reconhecido", clique em **Mais informações → Executar assim mesmo**. O executável não é assinado digitalmente.
 - **macOS:** descompacte, mova para Aplicativos e, na primeira vez, clique com o botão direito → **Abrir**. Isso é preciso porque o app não é assinado pela Apple.
@@ -81,6 +82,21 @@ Com o app aberto no PC, dá para acompanhar a rede pelo navegador do celular (An
 - **Windows:** na primeira vez, o Firewall pode pedir permissão. Clique em **Permitir acesso** para redes privadas.
 - Se a página mostrar "Sem conexão com o PC", confira se o app está aberto e se o celular está no mesmo Wi-Fi.
 
+## Android
+
+O APK é uma versão simplificada, boa para andar pela casa com o celular e ver onde o Wi-Fi fica lento (por exemplo, perto de cada Deco).
+
+**Instalar:** baixe o `MonitorRede-android-arm64.apk` no celular e abra o arquivo. O Android vai pedir para **permitir instalar apps desconhecidos** para o navegador ou o gerenciador de arquivos. Permita e toque em **Instalar**. O app não está na Play Store.
+
+- **Mede só com o app aberto.** Não roda em segundo plano nem manda notificações. Ao sair (botão Voltar na tela inicial), as medições param.
+- **Início:** veredito da casa (este celular e o PC), dois cartões com a latência de cada um e os últimos avisos dos dois.
+- **Este celular:** gráfico dos últimos 5 minutos e um cartão por endereço, com as mesmas cores do desktop. O botão **+ Adicionar endereço** abre um formulário com sugestões; o **×** remove.
+- **PC da casa:** mostra o que o app do PC está vendo, lido do [Painel no celular](#painel-no-celular) a cada 2 segundos: status, endereços e uso de rede do PC. Só funciona no mesmo Wi-Fi.
+- **Ajustes:** **Procurar PCs** acha os PCs com o painel ligado nesta rede (ou digite o IP). Também ajusta o intervalo, o tempo de espera e a porta do painel.
+- O **Roteador** é detectado pelo Android. Se não der, numa rede de Deco é usado `192.168.68.1`.
+
+Não tem no Android: uso da rede por aplicativo, banda total, iniciar com o sistema, bandeja, MCP e exportar CSV. O APK é assinado com uma chave de teste. Se uma versão nova não instalar por cima da antiga, desinstale a antiga antes.
+
 ## Integração com IA (MCP)
 
 O app também funciona como servidor [MCP](https://modelcontextprotocol.io). Assim, assistentes como Claude, Codex, Antigravity e Cursor podem consultar a rede, e você pode perguntar coisas como "minha internet caiu hoje de manhã?" ou "o servidor do jogo está com perda agora?".
@@ -134,9 +150,11 @@ Ficam na pasta de dados do usuário, em `MonitorRede/`:
 | Windows | `%APPDATA%\MonitorRede` |
 | macOS | `~/Library/Application Support/MonitorRede` |
 | Linux | `~/.local/share/MonitorRede` |
+| Android | pasta interna do app (é apagada ao desinstalar) |
 
 - **`config.json`:** endereços e opções.
 - **`status.json`:** status ao vivo, usado pelo MCP.
+- **`celular.json`** (só no Android): o PC da casa escolhido.
 - **`historico.sqlite`:** tabela `minutos`, com um resumo por minuto de cada endereço (enviados, perdidos, mínimo/média/máximo, jitter e picos), e tabela `eventos`.
 
 ## Compilar
@@ -162,6 +180,16 @@ CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=x86_64-w64-mingw32-gcc \
   cargo +stable build --release --target x86_64-pc-windows-gnu
 ```
 
+Para gerar o APK Android (precisa do Android SDK com build-tools, do NDK e de Java):
+
+```bash
+rustup target add aarch64-linux-android
+ANDROID_HOME=~/Library/Android/sdk ANDROID_NDK_HOME=~/Library/Android/sdk/ndk/<versão> \
+  android/build-apk.sh
+```
+
+O APK sai em `target/android/MonitorRede-android-arm64.apk`. Não usa Gradle: o script compila a biblioteca com o NDK e monta o pacote com `aapt2`, `zipalign` e `apksigner`. Sem `KEYSTORE` e `KEYSTORE_PASS`, ele cria uma chave de teste.
+
 Para salvar prints de todas as telas e fechar (usado para gerar as imagens deste README):
 
 ```bash
@@ -170,7 +198,9 @@ MONITOR_REDE_SHOTS=/tmp/prints cargo run
 
 ## Releases
 
-O workflow [`.github/workflows/build.yml`](.github/workflows/build.yml) compila e testa nos três sistemas a cada push. Ao enviar uma tag `v*`, ele também publica os executáveis numa Release:
+O workflow [`.github/workflows/build.yml`](.github/workflows/build.yml) compila e testa nos três sistemas e gera o APK Android a cada push. Ao enviar uma tag `v*`, ele também publica os executáveis e o APK numa Release.
+
+Por padrão, cada build assina o APK com uma chave de teste nova. Para manter a mesma chave entre versões (e atualizar sem desinstalar), cadastre os secrets `ANDROID_KEYSTORE_BASE64` (o arquivo `.keystore` em base64) e `ANDROID_KEYSTORE_PASSWORD`.
 
 ```bash
 git tag v0.3.0 && git push origin v0.3.0
@@ -180,7 +210,7 @@ git tag v0.3.0 && git push origin v0.3.0
 
 | Arquivo | Conteúdo |
 |---|---|
-| `src/probe.rs` | ping ICMP (API nativa no Windows, sem administrador), conexão TCP e detecção do roteador padrão |
+| `src/probe.rs` | ping ICMP (API nativa no Windows e socket ICMP no Android, sem administrador), conexão TCP e detecção do roteador padrão |
 | `src/monitor.rs` | uma thread por endereço, com estatísticas e eventos |
 | `src/history.rs` | histórico em SQLite |
 | `src/netusage.rs` | banda total e banda por aplicativo (Windows) |
@@ -190,4 +220,8 @@ git tag v0.3.0 && git push origin v0.3.0
 | `src/mcp.rs` | servidor MCP por stdio |
 | `src/tray.rs` | ícone na bandeja do sistema |
 | `src/web.rs` | painel no celular: servidor HTTP só leitura e a página (`src/web.html`) |
-| `src/ui/` | telas, feitas com [egui](https://github.com/emilk/egui) |
+| `src/ui/` | telas do desktop, feitas com [egui](https://github.com/emilk/egui) |
+| `src/lib.rs` | módulos compartilhados entre o desktop (`src/main.rs`) e o Android |
+| `src/mobile/` | telas do Android e conexão com o PC da casa (`pc.rs`: leitura do painel e busca na rede) |
+| `src/android.rs` | entrada do Android (NativeActivity), pasta de dados, roteador padrão e barras do sistema |
+| `android/` | `AndroidManifest.xml`, ícone e `build-apk.sh`, que gera o APK |

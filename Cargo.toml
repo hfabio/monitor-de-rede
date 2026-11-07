@@ -5,15 +5,33 @@ edition = "2021"
 description = "Monitor de latência, perda de pacotes e uso da rede com interface gráfica"
 repository = "https://github.com/hfabio/monitor-de-rede"
 
+# Biblioteca (usada pelo executável de desktop e, como .so, pelo APK Android).
+[lib]
+name = "monitor_rede"
+path = "src/lib.rs"
+
+[[bin]]
+name = "monitor-rede"
+path = "src/main.rs"
+
 [dependencies]
-eframe = "0.37"
 egui_plot = "0.38"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 dirs = "7"
 chrono = "0.4"
 rusqlite = { version = "0.41", features = ["bundled"] }
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+eframe = "0.37"
 sysinfo = { version = "0.40", default-features = false, features = ["network"] }
+
+# Android: NativeActivity + OpenGL ES (glow). O accesskit não funciona com NativeActivity.
+[target.'cfg(target_os = "android")'.dependencies]
+eframe = { version = "0.37", default-features = false, features = ["default_fonts", "glow", "android-native-activity"] }
+android-activity = { version = "0.6", features = ["native-activity"] }
+jni = "0.22"
+socket2 = "0.6"
 
 # Ícone na bandeja do sistema (no Linux exigiria GTK; lá o app fecha normalmente).
 [target.'cfg(any(windows, target_os = "macos"))'.dependencies]
