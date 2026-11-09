@@ -132,8 +132,7 @@ impl App {
                     ui.add(egui::DragValue::new(&mut d.retention_days).range(1..=3650));
                 });
             });
-            ui.checkbox(&mut d.check_updates, "Procurar atualizações no GitHub");
-            ui.add_enabled(d.check_updates, egui::Checkbox::new(&mut d.auto_update, "Instalar atualizações sozinho"));
+            ui.checkbox(&mut d.auto_update, "Atualizar automaticamente");
             let mut on = self.autostart;
             if ui.checkbox(&mut on, crate::autostart::label()).changed() {
                 match crate::autostart::set(on) {
@@ -202,7 +201,7 @@ impl App {
                 }
             });
             ui.label(
-                RichText::new("Procura versões novas no GitHub ao abrir e a cada 6 horas (só consulta a última versão; nenhum dado seu é enviado). Com \"Instalar atualizações sozinho\", instala e reabre o app.")
+                RichText::new("Procura versões novas no GitHub ao abrir e a cada 6 horas. Com \"Atualizar automaticamente\", instala sozinho e reabre o app.")
                     .size(11.0)
                     .color(DIM),
             );

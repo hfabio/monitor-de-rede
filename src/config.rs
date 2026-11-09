@@ -38,8 +38,6 @@ pub struct Config {
     /// MCP pela rede (`POST /mcp` no mesmo servidor do painel), com token.
     pub mcp_lan: bool,
     pub mcp_token: String,
-    /// Procura versões novas no GitHub (ao abrir e a cada 6 horas).
-    pub check_updates: bool,
     /// Instala sozinho as versões novas publicadas no GitHub.
     pub auto_update: bool,
     /// Portas padrão antigas já trocadas pela nova. Falta no arquivo = configuração antiga.
@@ -65,7 +63,6 @@ impl Default for Config {
             web_port: DEFAULT_PORT,
             mcp_lan: true,
             mcp_token: String::new(),
-            check_updates: true,
             auto_update: true,
             port_checked: true,
         }

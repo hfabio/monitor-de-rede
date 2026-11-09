@@ -6,7 +6,7 @@ App de desktop (Windows, macOS e Linux), com uma versão simplificada para Andro
 
 ## Download
 
-Baixe a versão mais recente em **[Releases](https://github.com/hfabio/monitor-de-rede/releases/latest)**. Veja também a [Code signing policy](#code-signing-policy) e a [privacidade](#privacidade).
+Baixe a versão mais recente em **[Releases](https://github.com/hfabio/monitor-de-rede/releases/latest)**:
 
 | Sistema | Arquivo |
 |---|---|
@@ -27,17 +27,6 @@ No Mac e no Linux, não precisa instalar nada. No Android, veja [Android](#andro
 - **Windows:** se o SmartScreen avisar "aplicativo não reconhecido", clique em **Mais informações → Executar assim mesmo**. O app não é assinado digitalmente.
 - **macOS:** abra o `.dmg` e arraste o app para **Aplicativos**. Na primeira vez, clique com o botão direito → **Abrir**, porque o app não é assinado pela Apple. Se você abrir o app direto da imagem ou dos Downloads, ele mesmo se copia para Aplicativos (ou `~/Applications`, sem permissão) e abre de lá.
 - **Linux:** descompacte e rode `./monitor-rede`.
-
-## Privacidade
-
-O programa não envia informações para outros sistemas, a não ser quando pedido pelo usuário ou por quem o instala ou opera. Na prática:
-
-- **Testes de rede:** o app mede o tempo de resposta (ping ou conexão TCP) até os endereços da lista, que você controla. A lista padrão tem o roteador da sua casa, o DNS do Google (`8.8.8.8`) e o da Cloudflare (`1.1.1.1`).
-- **Atualizações:** ao abrir e a cada 6 horas, o app consulta no GitHub qual é a última versão. Só baixa essa informação (e, se você permitir, a versão nova); nada seu é enviado. Dá para desligar em **Configurações → Procurar atualizações no GitHub**. Veja a [política de privacidade do GitHub](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement).
-- **Painel no celular e MCP pela rede:** só respondem a aparelhos da sua rede local, e o MCP exige um token. Os dois podem ser desligados em **Configurações**.
-- **Dados:** as medições e o histórico ficam só no seu computador (veja [Dados](#dados)).
-
-O instalador do Windows mostra este aviso, junto com as mudanças que faz no sistema (tarefa agendada e regra do Firewall), antes de instalar.
 
 ## Atualização automática
 
@@ -346,28 +335,8 @@ O workflow [`.github/workflows/build.yml`](.github/workflows/build.yml) compila 
 Por padrão, cada build assina o APK com uma chave de teste nova. Para manter a mesma chave entre versões (e atualizar sem desinstalar), cadastre os secrets `ANDROID_KEYSTORE_BASE64` (o arquivo `.keystore` em base64) e `ANDROID_KEYSTORE_PASSWORD`.
 
 ```bash
-git tag v0.7.0 && git push origin v0.7.0
+git tag v0.6.4 && git push origin v0.6.4
 ```
-
-## Code signing policy
-
-Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).
-
-Os executáveis do Windows (`MonitorRede-windows-x64.exe` e o instalador) são compilados pelo [GitHub Actions](.github/workflows/build.yml) a partir deste repositório e assinados pelo SignPath em cada Release, depois de aprovação manual.
-
-| Papel | Quem |
-|---|---|
-| Autores (committers) | [hfabio](https://github.com/hfabio) |
-| Revisores (reviewers) | [hfabio](https://github.com/hfabio) |
-| Aprovadores (approvers) | [hfabio](https://github.com/hfabio) |
-
-- Mudanças de outras pessoas (pull requests) só entram depois de revisadas.
-- Todos os membros usam autenticação em dois fatores no GitHub e no SignPath.
-- Privacidade: veja [Privacidade](#privacidade).
-
-## Licença
-
-[GPL-3.0-or-later](LICENSE). Você pode usar, estudar, modificar e redistribuir o programa (inclusive vender), desde que entregue o código-fonte, com as suas modificações, sob a mesma licença.
 
 ## Estrutura
 
@@ -384,8 +353,7 @@ Os executáveis do Windows (`MonitorRede-windows-x64.exe` e o instalador) são c
 | `src/update.rs` | atualização automática pelas Releases do GitHub e, no macOS, cópia para Aplicativos |
 | `src/instance.rs` | uma cópia só do app; no Windows instalado, abre como administrador pela tarefa agendada |
 | `assets/` | ícones do app (`make_icons.py` gera o `.ico` do Windows, o `.icns` do macOS e o ícone da janela) |
-| `installer/MonitorRede.iss` | instalador do Windows (Inno Setup); `installer/aviso.txt` é o aviso de privacidade e de mudanças no sistema mostrado na instalação |
-| `.signpath/` | configuração dos arquivos assinados no SignPath (para colar no projeto de lá) |
+| `installer/MonitorRede.iss` | instalador do Windows (Inno Setup) |
 | `src/tray.rs` | ícone na bandeja do sistema |
 | `src/web.rs` | painel no celular (servidor HTTP e a página `src/web.html`) e MCP pela rede (`POST /mcp`) |
 | `src/ui/` | telas do desktop, feitas com [egui](https://github.com/emilk/egui) |

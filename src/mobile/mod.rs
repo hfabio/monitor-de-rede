@@ -208,7 +208,7 @@ impl App {
         pc::spawn(pc.clone(), cc.egui_ctx.clone());
         let repaint = cc.egui_ctx.clone();
         // No Android só avisa; o APK novo é baixado pelo navegador.
-        let updater = crate::update::spawn(cfg.check_updates, false, move || repaint.request_repaint());
+        let updater = crate::update::spawn(false, move || repaint.request_repaint());
         Self {
             draft: cfg.clone(),
             cfg,
@@ -925,11 +925,6 @@ impl App {
         ui.label(RichText::new("Atualizações").size(13.0).color(DIM));
         card(ui, BORDER, |ui| {
             ui.set_width(ui.available_width());
-            if ui.checkbox(&mut self.cfg.check_updates, "Procurar atualizações no GitHub").changed() {
-                self.draft.check_updates = self.cfg.check_updates;
-                self.updater.check.store(self.cfg.check_updates, std::sync::atomic::Ordering::Relaxed);
-                let _ = self.cfg.save();
-            }
             let state = self.updater.state();
             ui.label(RichText::new(state.describe()).size(14.0).color(if matches!(state, crate::update::State::Failed(_)) { RED } else { MUTED }));
             match &state {
