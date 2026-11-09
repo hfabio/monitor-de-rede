@@ -6,7 +6,7 @@ App de desktop (Windows, macOS e Linux), com uma versão simplificada para Andro
 
 ## Download
 
-Baixe a versão mais recente em **[Releases](https://github.com/hfabio/monitor-de-rede/releases/latest)**. Veja também a [privacidade](#privacidade).
+Baixe a versão mais recente em **[Releases](https://github.com/hfabio/monitor-de-rede/releases/latest)**. Veja também a [Code signing policy](#code-signing-policy) e a [privacidade](#privacidade).
 
 | Sistema | Arquivo |
 |---|---|
@@ -349,6 +349,22 @@ Por padrão, cada build assina o APK com uma chave de teste nova. Para manter a 
 git tag v0.7.0 && git push origin v0.7.0
 ```
 
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).
+
+Os executáveis do Windows (`MonitorRede-windows-x64.exe` e o instalador) são compilados pelo [GitHub Actions](.github/workflows/build.yml) a partir deste repositório e assinados pelo SignPath em cada Release, depois de aprovação manual.
+
+| Papel | Quem |
+|---|---|
+| Autores (committers) | [hfabio](https://github.com/hfabio) |
+| Revisores (reviewers) | [hfabio](https://github.com/hfabio) |
+| Aprovadores (approvers) | [hfabio](https://github.com/hfabio) |
+
+- Mudanças de outras pessoas (pull requests) só entram depois de revisadas.
+- Todos os membros usam autenticação em dois fatores no GitHub e no SignPath.
+- Privacidade: veja [Privacidade](#privacidade).
+
 ## Licença
 
 [GPL-3.0-or-later](LICENSE). Você pode usar, estudar, modificar e redistribuir o programa (inclusive vender), desde que entregue o código-fonte, com as suas modificações, sob a mesma licença.
@@ -369,6 +385,7 @@ git tag v0.7.0 && git push origin v0.7.0
 | `src/instance.rs` | uma cópia só do app; no Windows instalado, abre como administrador pela tarefa agendada |
 | `assets/` | ícones do app (`make_icons.py` gera o `.ico` do Windows, o `.icns` do macOS e o ícone da janela) |
 | `installer/MonitorRede.iss` | instalador do Windows (Inno Setup); `installer/aviso.txt` é o aviso de privacidade e de mudanças no sistema mostrado na instalação |
+| `.signpath/` | configuração dos arquivos assinados no SignPath (para colar no projeto de lá) |
 | `src/tray.rs` | ícone na bandeja do sistema |
 | `src/web.rs` | painel no celular (servidor HTTP e a página `src/web.html`) e MCP pela rede (`POST /mcp`) |
 | `src/ui/` | telas do desktop, feitas com [egui](https://github.com/emilk/egui) |
