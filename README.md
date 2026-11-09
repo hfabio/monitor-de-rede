@@ -92,8 +92,8 @@ As sugestões de jogos usam `https://dynamodb.sa-east-1.amazonaws.com/ping` (AWS
 
 Com o app aberto no PC, dá para acompanhar a rede pelo navegador do celular (Android ou iPhone), no mesmo Wi-Fi. A página mostra o status geral, um cartão por endereço com a latência dos últimos minutos, a banda atual e os últimos eventos, e se atualiza a cada 2 segundos.
 
-- A aba **Configurações** mostra o endereço para abrir no celular, como `http://192.168.68.11:8080`, com um botão para copiar.
-- Dá para desligar o painel ou trocar a porta (padrão 8080) no cartão **Painel no celular**.
+- A aba **Configurações** mostra o endereço para abrir no celular, como `http://192.168.68.11:47810`, com um botão para copiar.
+- Dá para desligar o painel ou trocar a porta (padrão 47810; até a versão 0.6.0 era 8080, e configurações antigas mudam sozinhas) no cartão **Painel no celular**.
 - É só leitura: pelo celular não dá para mudar a configuração nem rodar testes.
 - **Windows:** na primeira vez, o Firewall pode pedir permissão. Clique em **Permitir acesso** para redes privadas.
 - Se a página mostrar "Sem conexão com o PC", confira se o app está aberto e se o celular está no mesmo Wi-Fi.
@@ -155,7 +155,7 @@ No macOS, o comando fica `"/Applications/Monitor de Rede.app/Contents/MacOS/moni
 
 ### De outro computador da rede
 
-Com o app aberto (também na bandeja), ele atende MCP por HTTP em `http://<IP do PC>:8080/mcp`, no mesmo servidor do [painel no celular](#painel-no-celular). Assim, do seu notebook você acompanha o seu PC, o de outra pessoa da casa e a rede de todos ao mesmo tempo: cadastre um servidor por computador.
+Com o app aberto (também na bandeja), ele atende MCP por HTTP em `http://<IP do PC>:47810/mcp`, no mesmo servidor do [painel no celular](#painel-no-celular). Assim, do seu notebook você acompanha o seu PC, o de outra pessoa da casa e a rede de todos ao mesmo tempo: cadastre um servidor por computador.
 
 - O acesso exige um token, gerado na primeira vez e mostrado em **Configurações → Integração com IA → De outro computador da rede**. Lá também dá para desligar o acesso pela rede ou gerar um token novo.
 - Cada servidor se apresenta com o nome do computador (por exemplo `monitor-rede-pc-da-ana`), e o `get_status` traz o campo `computer`, para o assistente não misturar os PCs.
@@ -164,7 +164,7 @@ Com o app aberto (também na bandeja), ele atende MCP por HTTP em `http://<IP do
 **Claude Code**
 
 ```bash
-claude mcp add --transport http monitor-rede-pc-da-ana http://192.168.68.11:8080/mcp --header "Authorization: Bearer <token>"
+claude mcp add --transport http monitor-rede-pc-da-ana http://192.168.68.11:47810/mcp --header "Authorization: Bearer <token>"
 ```
 
 **Cursor, Antigravity e outros** (`mcpServers`):
@@ -174,7 +174,7 @@ claude mcp add --transport http monitor-rede-pc-da-ana http://192.168.68.11:8080
   "mcpServers": {
     "monitor-rede-pc-da-ana": {
       "type": "http",
-      "url": "http://192.168.68.11:8080/mcp",
+      "url": "http://192.168.68.11:47810/mcp",
       "headers": { "Authorization": "Bearer <token>" }
     }
   }
@@ -185,9 +185,79 @@ claude mcp add --transport http monitor-rede-pc-da-ana http://192.168.68.11:8080
 
 ```toml
 [mcp_servers.monitor-rede-pc-da-ana]
-url = "http://192.168.68.11:8080/mcp"
+url = "http://192.168.68.11:47810/mcp"
 http_headers = { "Authorization" = "Bearer <token>" }
 ```
+
+**Claude Desktop**
+
+O Claude Desktop só abre servidores locais pelo arquivo de configuração. Para um PC da rede, use a ponte [`mcp-remote`](https://www.npmjs.com/package/mcp-remote), que precisa do [Node.js](https://nodejs.org) instalado.
+
+1. No Claude Desktop, abra **Configurações → Desenvolvedor → Editar configuração**. O arquivo é `claude_desktop_config.json`: no macOS, em `~/Library/Application Support/Claude/`; no Windows, em `%APPDATA%\Claude\`.
+2. Acrescente um servidor por PC em `mcpServers`, com o IP e o token de cada um:
+
+```json
+{
+  "mcpServers": {
+    "monitor-rede-pc-da-ana": {
+      "command": "npx",
+      "args": [
+        "-y", "mcp-remote", "http://192.168.68.11:47810/mcp",
+        "--allow-http",
+        "--header", "Authorization:${AUTH}"
+      ],
+      "env": { "AUTH": "Bearer <token>" }
+    }
+  }
+}
+```
+
+3. Feche o Claude Desktop por completo (inclusive o ícone na barra de menus ou na bandeja) e abra de novo. Os servidores aparecem no menu de ferramentas da conversa.
+
+- O `--allow-http` é preciso porque o servidor não usa HTTPS; ele só funciona na rede de casa.
+- O token vai na variável `AUTH` porque o Claude Desktop no Windows quebra argumentos com espaço.
+- Os conectores personalizados (**Configurações → Conectores**) não servem aqui: eles são acessados pelos servidores da Anthropic, que não enxergam a rede da sua casa.
+
+### Achar os computadores na rede
+
+Cada PC com o app aberto responde em `http://<IP>:47810/api/status` sem token, com o nome do computador no campo `computer`. Os comandos abaixo testam todos os endereços da sua rede e listam os que responderam, já com o endereço do MCP. O token não aparece na busca: pegue o de cada PC na tela **Configurações** dele.
+
+**macOS e Linux** (no terminal):
+
+```bash
+PORTA=47810
+REDE=$( (ipconfig getifaddr en0 2>/dev/null || hostname -I | cut -d' ' -f1) | cut -d. -f1-3)
+for i in $(seq 1 254); do
+  (nome=$(curl -s -m 1 "http://$REDE.$i:$PORTA/api/status" | grep -o '"computer":"[^"]*"' | cut -d'"' -f4)
+   [ -n "$nome" ] && echo "$REDE.$i  $nome  http://$REDE.$i:$PORTA/mcp") &
+done; wait
+```
+
+**Windows** (no PowerShell):
+
+```powershell
+$porta = 47810
+$ip = (Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway } | Select-Object -First 1).IPv4Address.IPAddress
+$rede = $ip -replace '\.\d+$', ''
+Add-Type -AssemblyName System.Net.Http
+$http = New-Object System.Net.Http.HttpClient
+$http.Timeout = [TimeSpan]::FromSeconds(2)
+$testes = 1..254 | ForEach-Object { [pscustomobject]@{ ip = "$rede.$_"; r = $http.GetStringAsync("http://$rede.$_:$porta/api/status") } }
+foreach ($t in $testes) {
+  try { $s = $t.r.GetAwaiter().GetResult() | ConvertFrom-Json; "$($t.ip)  $($s.computer)  http://$($t.ip):$porta/mcp" } catch {}
+}
+```
+
+Exemplo de resultado:
+
+```text
+192.168.68.11  LUANA-PC  http://192.168.68.11:47810/mcp
+192.168.68.14  MacBook Pro do Helton  http://192.168.68.14:47810/mcp
+```
+
+- Os comandos varrem só a sua faixa (`192.168.68.1` a `.254`, por exemplo). Na rede dos Decos da TP-Link, que vai de `192.168.68.x` a `192.168.71.x`, um PC numa faixa diferente da sua não aparece: troque `REDE` (ou `$rede`) por `192.168.69`, `192.168.70` ou `192.168.71` e rode de novo.
+- Se um PC não aparecer, confira se o app está aberto nele, se o **Painel no celular** está ligado e, no Windows, se o Firewall liberou o app. O instalador já cria essa regra.
+- O app Android faz a mesma busca em **Ajustes → Procurar PCs**.
 
 ### Ferramentas
 
@@ -263,7 +333,7 @@ O workflow [`.github/workflows/build.yml`](.github/workflows/build.yml) compila 
 Por padrão, cada build assina o APK com uma chave de teste nova. Para manter a mesma chave entre versões (e atualizar sem desinstalar), cadastre os secrets `ANDROID_KEYSTORE_BASE64` (o arquivo `.keystore` em base64) e `ANDROID_KEYSTORE_PASSWORD`.
 
 ```bash
-git tag v0.6.0 && git push origin v0.6.0
+git tag v0.6.1 && git push origin v0.6.1
 ```
 
 ## Estrutura

@@ -40,6 +40,9 @@ pub struct Config {
     pub mcp_token: String,
     /// Instala sozinho as versões novas publicadas no GitHub.
     pub auto_update: bool,
+    /// Portas padrão antigas já trocadas pela nova. Falta no arquivo = configuração antiga.
+    #[serde(default)]
+    pub port_checked: bool,
 }
 
 impl Default for Config {
@@ -57,10 +60,11 @@ impl Default for Config {
             history_enabled: true,
             retention_days: 30,
             web_enabled: true,
-            web_port: 8080,
+            web_port: DEFAULT_PORT,
             mcp_lan: true,
             mcp_token: String::new(),
             auto_update: true,
+            port_checked: true,
         }
     }
 }
@@ -82,12 +86,27 @@ fn config_path() -> PathBuf {
     app_dir().join("config.json")
 }
 
+/// Porta do painel no celular e do MCP pela rede.
+/// Alta e pouco usada, para não brigar com servidores de desenvolvimento.
+pub const DEFAULT_PORT: u16 = 47810;
+/// Portas padrão antigas (até a versão 0.6.0 era 8080).
+pub const OLD_DEFAULT_PORTS: [u16; 2] = [8080, 4242];
+
 impl Config {
     pub fn load() -> Self {
-        std::fs::read_to_string(config_path())
+        let mut cfg: Self = std::fs::read_to_string(config_path())
             .ok()
             .and_then(|s| serde_json::from_str(&s).ok())
-            .unwrap_or_default()
+            .unwrap_or_default();
+        // Configuração antiga ainda na porta padrão antiga: passa para a nova.
+        if !cfg.port_checked {
+            if OLD_DEFAULT_PORTS.contains(&cfg.web_port) {
+                cfg.web_port = DEFAULT_PORT;
+            }
+            cfg.port_checked = true;
+            let _ = cfg.save();
+        }
+        cfg
     }
 
     pub fn save(&self) -> std::io::Result<()> {

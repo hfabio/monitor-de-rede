@@ -1,6 +1,6 @@
 [package]
 name = "monitor-rede"
-version = "0.6.0"
+version = "0.6.1"
 edition = "2021"
 description = "Monitor de latência, perda de pacotes e uso da rede com interface gráfica"
 repository = "https://github.com/hfabio/monitor-de-rede"

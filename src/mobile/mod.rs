@@ -141,7 +141,16 @@ impl PhoneSettings {
     }
 
     fn load() -> Self {
-        std::fs::read_to_string(Self::path()).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default()
+        let mut s: Self = std::fs::read_to_string(Self::path()).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
+        // PC salvo na porta padrão antiga: os PCs atualizados usam a nova.
+        for port in crate::config::OLD_DEFAULT_PORTS {
+            let old = format!(":{port}");
+            if let Some(addr) = s.pc.as_deref().and_then(|a| a.strip_suffix(old.as_str())) {
+                s.pc = Some(format!("{addr}:{}", crate::config::DEFAULT_PORT));
+                let _ = s.save();
+            }
+        }
+        s
     }
 
     fn save(&self) -> std::io::Result<()> {
