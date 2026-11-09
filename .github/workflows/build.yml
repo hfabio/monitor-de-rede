@@ -19,6 +19,10 @@ jobs:
   build:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
+    env:
+      # Assinatura de código do Windows (SignPath). Sem o segredo, os
+      # executáveis saem sem assinatura, como antes.
+      SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -55,8 +59,39 @@ jobs:
           mkdir -p dist
           cp target/release/monitor-rede.exe dist/MonitorRede-windows-x64.exe
 
+      # Assinatura (SignPath), só em Releases (tags v*) e com o segredo
+      # configurado. Cada pedido precisa ser aprovado no SignPath.
+      - name: Versão
+        if: runner.os == 'Windows'
+        shell: bash
+        run: echo "VERSION=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)" >> "$GITHUB_ENV"
+
+      - name: Enviar .exe para assinatura
+        id: unsigned-exe
+        if: runner.os == 'Windows' && startsWith(github.ref, 'refs/tags/v') && env.SIGNPATH_API_TOKEN != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: signpath-exe
+          path: dist/MonitorRede-windows-x64.exe
+
+      - name: Assinar .exe (SignPath)
+        if: steps.unsigned-exe.outcome == 'success'
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: monitor-de-rede
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: exe
+          github-artifact-id: ${{ steps.unsigned-exe.outputs.artifact-id }}
+          parameters: |
+            version: "${{ env.VERSION }}"
+          wait-for-completion-timeout-in-seconds: 3600
+          output-artifact-directory: dist
+
       # Instalador (Inno Setup): instala em Arquivos de Programas e configura o
       # app para abrir sempre como administrador, sem a pergunta do UAC.
+      # Usa o .exe de dist/ (assinado, quando há assinatura).
       - name: Instalador (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -66,9 +101,32 @@ jobs:
             choco install innosetup -y --no-progress
           }
           $version = (Select-String -Path Cargo.toml -Pattern '^version = "(.+)"' | Select-Object -First 1).Matches.Groups[1].Value
-          & $iscc "/DAppVersion=$version" "/DExePath=..\target\release\monitor-rede.exe" installer\MonitorRede.iss
+          & $iscc "/DAppVersion=$version" "/DExePath=..\dist\MonitorRede-windows-x64.exe" installer\MonitorRede.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Get-ChildItem dist
+
+      - name: Enviar instalador para assinatura
+        id: unsigned-setup
+        if: runner.os == 'Windows' && startsWith(github.ref, 'refs/tags/v') && env.SIGNPATH_API_TOKEN != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: signpath-instalador
+          path: dist/MonitorRede-windows-x64-instalador.exe
+
+      - name: Assinar instalador (SignPath)
+        if: steps.unsigned-setup.outcome == 'success'
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: monitor-de-rede
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: instalador
+          github-artifact-id: ${{ steps.unsigned-setup.outputs.artifact-id }}
+          parameters: |
+            version: "${{ env.VERSION }}"
+          wait-for-completion-timeout-in-seconds: 3600
+          output-artifact-directory: dist
 
       - name: Build (Linux)
         if: runner.os == 'Linux'
@@ -163,9 +221,13 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           path: dist
+          # Só os arquivos finais (não os enviados para assinatura).
+          pattern: "{windows-x64,macos-universal,linux-x64,android-arm64}"
           merge-multiple: true
 
       - uses: softprops/action-gh-release@v3
         with:
           files: dist/*
           generate_release_notes: true
+          body: |
+            [Code signing policy](https://github.com/hfabio/monitor-de-rede#code-signing-policy) · [Privacidade](https://github.com/hfabio/monitor-de-rede#privacidade)

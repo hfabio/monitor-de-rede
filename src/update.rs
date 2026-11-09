@@ -63,6 +63,8 @@ impl State {
 
 pub struct Updater {
     state: Mutex<State>,
+    /// Procura sozinho (ao abrir e a cada 6 h). Desligado: só no "Procurar agora".
+    pub check: AtomicBool,
     pub auto: AtomicBool,
     wake: (Mutex<bool>, Condvar),
 }
@@ -82,29 +84,36 @@ impl Updater {
         self.wake.1.notify_all();
     }
 
-    fn sleep(&self, d: Duration) {
+    /// Espera `d` ou um "Procurar agora". Devolve `true` se foi pedido.
+    fn sleep(&self, d: Duration) -> bool {
         let guard = self.wake.0.lock().unwrap();
         let (mut g, _) = self.wake.1.wait_timeout_while(guard, d, |woken| !*woken).unwrap();
-        *g = false;
+        std::mem::take(&mut *g)
     }
 }
 
 /// Inicia a verificação periódica. `repaint` avisa a interface que algo mudou.
-pub fn spawn(auto: bool, repaint: impl Fn() + Send + 'static) -> Arc<Updater> {
-    let up = Arc::new(Updater { state: Mutex::new(State::Idle), auto: AtomicBool::new(auto), wake: (Mutex::new(false), Condvar::new()) });
+pub fn spawn(check_on: bool, auto: bool, repaint: impl Fn() + Send + 'static) -> Arc<Updater> {
+    let up = Arc::new(Updater {
+        state: Mutex::new(State::Idle),
+        check: AtomicBool::new(check_on),
+        auto: AtomicBool::new(auto),
+        wake: (Mutex::new(false), Condvar::new()),
+    });
     let u = up.clone();
     std::thread::spawn(move || {
-        u.sleep(FIRST_CHECK);
+        let mut asked = u.sleep(FIRST_CHECK);
         loop {
+            // Só consulta o GitHub se a opção estiver ligada ou se pediram agora.
             // Não interrompe uma instalação em andamento.
-            if !matches!(u.state(), State::Installing(_)) {
+            if (asked || u.check.load(Ordering::Relaxed)) && !matches!(u.state(), State::Installing(_)) {
                 u.set(State::Checking);
                 repaint();
                 match check() {
                     Ok(Some(r)) => {
                         u.set(State::Available(r.clone()));
                         repaint();
-                        if cfg!(not(target_os = "android")) && u.auto.load(Ordering::Relaxed) {
+                        if cfg!(not(target_os = "android")) && u.auto.load(Ordering::Relaxed) && u.check.load(Ordering::Relaxed) {
                             install(&u, &r, false);
                         }
                     }
@@ -113,7 +122,7 @@ pub fn spawn(auto: bool, repaint: impl Fn() + Send + 'static) -> Arc<Updater> {
                 }
                 repaint();
             }
-            u.sleep(EVERY);
+            asked = u.sleep(EVERY);
         }
     });
     up

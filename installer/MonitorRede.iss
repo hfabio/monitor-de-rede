@@ -38,6 +38,16 @@ SolidCompression=yes
 WizardStyle=modern
 UninstallDisplayIcon={app}\MonitorRede.exe
 SetupIconFile=..\assets\icon.ico
+LicenseFile=..\LICENSE
+InfoBeforeFile=aviso.txt
+VersionInfoVersion={#AppVersion}
+VersionInfoProductName=Monitor de Rede
+VersionInfoProductVersion={#AppVersion}
+VersionInfoProductTextVersion={#AppVersion}
+VersionInfoTextVersion={#AppVersion}
+VersionInfoDescription=Instalador do Monitor de Rede
+VersionInfoCompany=hfabio
+VersionInfoCopyright=GPL-3.0-or-later
 UninstallDisplayName=Monitor de Rede
 
 [Languages]

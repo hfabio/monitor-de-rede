@@ -170,7 +170,7 @@ impl App {
         let tray = crate::tray::install(cc, monitor.shared.clone(), usage.clone());
         crate::instance::serve(cc.egui_ctx.clone());
         let repaint = cc.egui_ctx.clone();
-        let updater = crate::update::spawn(cfg.auto_update, move || repaint.request_repaint());
+        let updater = crate::update::spawn(cfg.check_updates, cfg.auto_update, move || repaint.request_repaint());
         // O app pode ter mudado de pasta (atualização, cópia para Aplicativos):
         // regrava o "iniciar com o sistema" com o caminho atual.
         if crate::autostart::is_enabled() {
@@ -301,6 +301,7 @@ impl App {
         self.monitor.apply(&self.cfg);
         self.restart_web();
         self.updater.auto.store(self.cfg.auto_update, std::sync::atomic::Ordering::Relaxed);
+        self.updater.check.store(self.cfg.check_updates, std::sync::atomic::Ordering::Relaxed);
         self.message = Some(match self.cfg.save() {
             Ok(()) => ("Configuração salva e aplicada.".into(), true),
             Err(e) => (format!("Aplicado, mas não consegui salvar: {e}"), false),

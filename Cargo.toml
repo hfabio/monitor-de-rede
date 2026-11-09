@@ -1,8 +1,9 @@
 [package]
 name = "monitor-rede"
-version = "0.6.4"
+version = "0.7.0"
 edition = "2021"
 description = "Monitor de latência, perda de pacotes e uso da rede com interface gráfica"
+license = "GPL-3.0-or-later"
 repository = "https://github.com/hfabio/monitor-de-rede"
 
 # Biblioteca (usada pelo executável de desktop e, como .so, pelo APK Android).
