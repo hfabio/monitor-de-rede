@@ -2,7 +2,7 @@
 
 use crate::config::{Config, Target};
 use crate::history::{self, Msg};
-use crate::probe::{resolve, Endpoint, Prober};
+use crate::probe::{resolve, Endpoint, Method, Prober};
 use chrono::{Local, TimeZone};
 use std::collections::VecDeque;
 use std::net::Ipv4Addr;
@@ -19,6 +19,9 @@ pub const EVENTS_SECS: f64 = 86400.0;
 const MAX_EVENTS: usize = 5000;
 /// Falhas seguidas para considerar "queda".
 const OUTAGE_AFTER: u32 = 3;
+/// Endereços medidos por conexão (https://, host:porta) no máximo a cada 5 s:
+/// abrir uma conexão por segundo pode fazer o servidor descartar algumas.
+const TCP_MIN_INTERVAL: Duration = Duration::from_secs(5);
 
 pub fn now_secs() -> f64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs_f64()).unwrap_or(0.0)
@@ -311,6 +314,10 @@ impl Worker {
 
     fn run(self) {
         let ep = Endpoint::parse(&self.host);
+        let interval = match ep.method {
+            Method::Tcp(_) => self.interval.max(TCP_MIN_INTERVAL),
+            Method::Icmp => self.interval,
+        };
         let mut prober = Prober::new();
         let mut ip: Option<Ipv4Addr> = None;
         let mut last_resolve: Option<Instant> = None;
@@ -413,7 +420,7 @@ impl Worker {
             }
 
             // Espera o próximo ciclo em pedaços curtos para responder rápido ao "parar".
-            next += self.interval;
+            next += interval;
             let now = Instant::now();
             if next < now {
                 next = now;

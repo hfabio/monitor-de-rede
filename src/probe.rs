@@ -95,14 +95,21 @@ impl Prober {
     }
 }
 
+/// Tempo de conexão a partir do qual o primeiro pacote (SYN) se perdeu: os
+/// sistemas esperam 1 s para reenviar, então a conexão leva "1 s + latência".
+pub const TCP_RETRANSMIT_MS: f64 = 1000.0;
+
 fn tcp_ping(ip: Ipv4Addr, port: u16, timeout: Duration) -> Option<f64> {
     let start = Instant::now();
-    match TcpStream::connect_timeout(&SocketAddr::new(IpAddr::V4(ip), port), timeout) {
-        Ok(_) => Some(start.elapsed().as_secs_f64() * 1000.0),
+    let ms = || start.elapsed().as_secs_f64() * 1000.0;
+    let rtt = match TcpStream::connect_timeout(&SocketAddr::new(IpAddr::V4(ip), port), timeout) {
+        Ok(_) => ms(),
         // "Conexão recusada" também é uma resposta do servidor.
-        Err(e) if e.kind() == std::io::ErrorKind::ConnectionRefused => Some(start.elapsed().as_secs_f64() * 1000.0),
-        Err(_) => None,
-    }
+        Err(e) if e.kind() == std::io::ErrorKind::ConnectionRefused => ms(),
+        Err(_) => return None,
+    };
+    // Conectou só depois de reenviar: conta como pacote perdido, não como latência.
+    (rtt < TCP_RETRANSMIT_MS).then_some(rtt)
 }
 
 // ------------------------------------------------------------------ Windows

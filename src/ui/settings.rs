@@ -116,6 +116,7 @@ impl App {
             row(ui, "Intervalo por alvo (ms)", &mut |ui| {
                 ui.add(egui::DragValue::new(&mut d.interval_ms).range(200..=60_000).speed(50));
             });
+            ui.label(RichText::new("Endereços https:// e host:porta: no mínimo a cada 5 s.").size(11.0).color(DIM));
             row(ui, "Timeout (ms)", &mut |ui| {
                 ui.add(egui::DragValue::new(&mut d.timeout_ms).range(100..=10_000).speed(50));
             });

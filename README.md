@@ -86,6 +86,8 @@ No Linux, a bandeja exigiria GTK. Lá, fechar a janela encerra o app.
 | `https://site.com/caminho` | tempo de conexão TCP na porta 443, para servidores que bloqueiam ping |
 | `http://site.com`, `1.2.3.4:27015` | tempo de conexão TCP na porta indicada |
 
+Os endereços medidos por conexão TCP são testados no máximo a cada 5 segundos, porque abrir uma conexão por segundo pode fazer o servidor descartar algumas. Uma conexão que leva 1 segundo ou mais conta como **pacote perdido**, não como latência: o sistema só reenvia o primeiro pacote depois de 1 segundo, então esse tempo significa que um pacote se perdeu no caminho.
+
 As sugestões de jogos usam `https://dynamodb.sa-east-1.amazonaws.com/ping` (AWS São Paulo). Esse endereço dá uma boa aproximação da latência até os servidores brasileiros.
 
 ## Painel no celular
@@ -333,7 +335,7 @@ O workflow [`.github/workflows/build.yml`](.github/workflows/build.yml) compila 
 Por padrão, cada build assina o APK com uma chave de teste nova. Para manter a mesma chave entre versões (e atualizar sem desinstalar), cadastre os secrets `ANDROID_KEYSTORE_BASE64` (o arquivo `.keystore` em base64) e `ANDROID_KEYSTORE_PASSWORD`.
 
 ```bash
-git tag v0.6.2 && git push origin v0.6.2
+git tag v0.6.3 && git push origin v0.6.3
 ```
 
 ## Estrutura
