@@ -37,6 +37,7 @@ Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
 UninstallDisplayIcon={app}\MonitorRede.exe
+SetupIconFile=..\assets\icon.ico
 UninstallDisplayName=Monitor de Rede
 
 [Languages]

@@ -335,7 +335,7 @@ O workflow [`.github/workflows/build.yml`](.github/workflows/build.yml) compila 
 Por padrão, cada build assina o APK com uma chave de teste nova. Para manter a mesma chave entre versões (e atualizar sem desinstalar), cadastre os secrets `ANDROID_KEYSTORE_BASE64` (o arquivo `.keystore` em base64) e `ANDROID_KEYSTORE_PASSWORD`.
 
 ```bash
-git tag v0.6.3 && git push origin v0.6.3
+git tag v0.6.4 && git push origin v0.6.4
 ```
 
 ## Estrutura
@@ -352,6 +352,7 @@ git tag v0.6.3 && git push origin v0.6.3
 | `src/mcp.rs` | servidor MCP (stdio; pela rede, via `src/web.rs`) |
 | `src/update.rs` | atualização automática pelas Releases do GitHub e, no macOS, cópia para Aplicativos |
 | `src/instance.rs` | uma cópia só do app; no Windows instalado, abre como administrador pela tarefa agendada |
+| `assets/` | ícones do app (`make_icons.py` gera o `.ico` do Windows, o `.icns` do macOS e o ícone da janela) |
 | `installer/MonitorRede.iss` | instalador do Windows (Inno Setup) |
 | `src/tray.rs` | ícone na bandeja do sistema |
 | `src/web.rs` | painel no celular (servidor HTTP e a página `src/web.html`) e MCP pela rede (`POST /mcp`) |

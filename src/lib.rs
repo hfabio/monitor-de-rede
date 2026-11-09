@@ -63,6 +63,7 @@ pub fn desktop_main() -> eframe::Result {
         viewport: eframe::egui::ViewportBuilder::default()
             .with_visible(!start_hidden)
             .with_title("Monitor de Rede")
+            .with_icon(eframe::egui::IconData { rgba: include_bytes!("../assets/icon-64.rgba").to_vec(), width: 64, height: 64 })
             .with_inner_size([1100.0, 720.0])
             .with_min_inner_size([820.0, 560.0]),
         ..Default::default()
