@@ -35,6 +35,9 @@ pub struct Config {
     /// Painel no celular: servidor HTTP só leitura na rede de casa.
     pub web_enabled: bool,
     pub web_port: u16,
+    /// MCP pela rede (`POST /mcp` no mesmo servidor do painel), com token.
+    pub mcp_lan: bool,
+    pub mcp_token: String,
 }
 
 impl Default for Config {
@@ -53,6 +56,8 @@ impl Default for Config {
             retention_days: 30,
             web_enabled: true,
             web_port: 8080,
+            mcp_lan: true,
+            mcp_token: String::new(),
         }
     }
 }

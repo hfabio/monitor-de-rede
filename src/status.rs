@@ -113,6 +113,7 @@ pub fn build(shared: &Mutex<Shared>, usage: &Mutex<Usage>) -> Value {
     };
 
     json!({
+        "computer": pc_name(),
         "updated_at": iso(now),
         "updated_unix": now,
         "monitoring_since": iso(started),
@@ -145,4 +146,28 @@ pub fn spawn_writer(shared: Arc<Mutex<Shared>>, usage: Arc<Mutex<Usage>>) {
         }
         std::thread::sleep(Duration::from_secs(2));
     });
+}
+
+/// Nome deste computador (para diferenciar vários PCs no MCP e no celular).
+pub fn pc_name() -> String {
+    static NAME: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    NAME.get_or_init(|| {
+        let from_cmd = |cmd: &str, args: &[&str]| {
+            std::process::Command::new(cmd)
+                .args(args)
+                .output()
+                .ok()
+                .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+                .filter(|s| !s.is_empty())
+        };
+        let name = if cfg!(windows) {
+            std::env::var("COMPUTERNAME").ok()
+        } else if cfg!(target_os = "macos") {
+            from_cmd("scutil", &["--get", "ComputerName"])
+        } else {
+            from_cmd("hostname", &[])
+        };
+        name.unwrap_or_else(|| "computador".into())
+    })
+    .clone()
 }

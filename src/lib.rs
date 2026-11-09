@@ -13,6 +13,8 @@ mod config;
 #[cfg_attr(target_os = "android", allow(dead_code))]
 mod history;
 #[cfg(not(target_os = "android"))]
+mod instance;
+#[cfg(not(target_os = "android"))]
 mod mcp;
 #[cfg(target_os = "android")]
 mod mobile;
@@ -39,8 +41,17 @@ pub fn desktop_main() -> eframe::Result {
         mcp::serve();
         return Ok(());
     }
+    // Chamadas do instalador do Windows (criar/remover a tarefa agendada).
+    if let Some(code) = instance::installer_command() {
+        std::process::exit(code);
+    }
     // Ao iniciar com o sistema, abre direto na bandeja (sem mostrar a janela).
-    let start_hidden = tray::SUPPORTED && std::env::args().any(|a| a == tray::START_HIDDEN_ARG);
+    let hidden_arg = std::env::args().any(|a| a == tray::START_HIDDEN_ARG);
+    // Já existe uma cópia aberta (ou a de administrador foi chamada): ela assume.
+    if !instance::start(!hidden_arg) {
+        return Ok(());
+    }
+    let start_hidden = tray::SUPPORTED && hidden_arg;
     let options = eframe::NativeOptions {
         viewport: eframe::egui::ViewportBuilder::default()
             .with_visible(!start_hidden)

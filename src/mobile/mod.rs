@@ -666,7 +666,9 @@ impl App {
                 monitor_icon(ui.painter(), r.center(), TEXT);
                 ui.vertical(|ui| {
                     ui.spacing_mut().item_spacing.y = 2.0;
-                    ui.label(RichText::new("PC da casa").strong());
+                    // Nome do computador (versões do PC a partir da 0.5.0).
+                    let name = data.as_ref().and_then(|d| d["computer"].as_str()).unwrap_or("PC da casa");
+                    ui.label(RichText::new(name).strong());
                     let state = if online { "conectado" } else if data.is_none() && age.is_none() { "conectando…" } else { "sem resposta" };
                     ui.add(egui::Label::new(RichText::new(format!("{addr} · {state}")).size(12.0).monospace().color(DIM)).truncate());
                 });

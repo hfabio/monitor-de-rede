@@ -69,8 +69,8 @@ pub fn handle(msg: &Value) -> Option<Value> {
                 json!({
                     "protocolVersion": version,
                     "capabilities": { "tools": {} },
-                    "serverInfo": { "name": "monitor-rede", "title": "Monitor de Rede", "version": env!("CARGO_PKG_VERSION") },
-                    "instructions": INSTRUCTIONS,
+                    "serverInfo": { "name": "monitor-rede", "title": format!("Monitor de Rede ({})", status::pc_name()), "version": env!("CARGO_PKG_VERSION") },
+                    "instructions": format!("{INSTRUCTIONS} Este servidor mede a rede do computador \"{}\"; se houver outros servidores monitor-rede, cada um é um computador diferente.", status::pc_name()),
                 }),
             )
         }
@@ -385,6 +385,36 @@ pub mod setup {
 
     pub fn codex() -> String {
         format!("[mcp_servers.monitor-rede]\ncommand = '{}'\nargs = [\"mcp\"]\n", exe())
+    }
+
+    /// Nome sugerido para o servidor pela rede: `monitor-rede-<computador>`.
+    pub fn lan_name() -> String {
+        let pc: String = crate::status::pc_name()
+            .to_lowercase()
+            .chars()
+            .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
+            .collect();
+        format!("monitor-rede-{}", pc.trim_matches('-'))
+    }
+
+    /// Trechos para usar o MCP de outro computador da rede.
+    pub mod lan {
+        use super::lan_name;
+
+        pub fn claude_code(url: &str, token: &str) -> String {
+            format!("claude mcp add --transport http {} {url} --header \"Authorization: Bearer {token}\"", lan_name())
+        }
+
+        pub fn json(url: &str, token: &str) -> String {
+            let v = serde_json::json!({ "mcpServers": { lan_name(): {
+                "type": "http", "url": url, "headers": { "Authorization": format!("Bearer {token}") }
+            } } });
+            serde_json::to_string_pretty(&v).unwrap_or_default()
+        }
+
+        pub fn codex(url: &str, token: &str) -> String {
+            format!("[mcp_servers.{}]\nurl = \"{url}\"\nhttp_headers = {{ \"Authorization\" = \"Bearer {token}\" }}\n", lan_name())
+        }
     }
 }
 

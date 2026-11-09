@@ -55,6 +55,21 @@ jobs:
           mkdir -p dist
           cp target/release/monitor-rede.exe dist/MonitorRede-windows-x64.exe
 
+      # Instalador (Inno Setup): instala em Arquivos de Programas e configura o
+      # app para abrir sempre como administrador, sem a pergunta do UAC.
+      - name: Instalador (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup -y --no-progress
+          }
+          $version = (Select-String -Path Cargo.toml -Pattern '^version = "(.+)"' | Select-Object -First 1).Matches.Groups[1].Value
+          & $iscc "/DAppVersion=$version" "/DExePath=..\target\release\monitor-rede.exe" installer\MonitorRede.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-ChildItem dist
+
       - name: Build (Linux)
         if: runner.os == 'Linux'
         run: |

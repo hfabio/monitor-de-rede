@@ -175,12 +175,58 @@ impl App {
                     .color(MUTED),
             );
             ui.add_space(4.0);
+            ui.horizontal(|ui| {
+                ui.selectable_value(&mut self.mcp_show_lan, false, "Neste computador");
+                ui.selectable_value(&mut self.mcp_show_lan, true, "De outro computador da rede");
+            });
+            ui.add_space(2.0);
+
+            let items: Vec<(&str, &str, String)> = if !self.mcp_show_lan {
+                vec![
+                    ("Claude Code", "rode no terminal", setup::claude_code()),
+                    ("Claude Desktop · Antigravity · Cursor", "cole em mcpServers do arquivo de configuração", setup::json()),
+                    ("Codex", "cole em ~/.codex/config.toml", setup::codex()),
+                ]
+            } else {
+                ui.horizontal(|ui| {
+                    ui.add_enabled(self.draft.web_enabled, egui::Checkbox::new(&mut self.draft.mcp_lan, "Permitir acesso pela rede de casa"));
+                    if ui.button(RichText::new("Gerar novo token").size(12.0)).on_hover_text("O token antigo para de funcionar").clicked() {
+                        self.draft.mcp_token = crate::web::new_token();
+                    }
+                });
+                if !self.draft.web_enabled {
+                    ui.label(RichText::new("Usa o mesmo servidor do Painel no celular: ative o painel abaixo.").size(11.0).color(AMBER));
+                }
+                if self.draft.mcp_lan != self.cfg.mcp_lan || self.draft.mcp_token != self.cfg.mcp_token {
+                    ui.label(RichText::new("Clique em Salvar e aplicar para valer.").size(11.0).color(AMBER));
+                }
+                match self.web.as_ref().filter(|w| w.mcp_token().is_some()) {
+                    Some(w) => {
+                        let host = crate::web::lan_ip().map(|ip| ip.to_string()).unwrap_or_else(|| "localhost".into());
+                        let url = format!("http://{host}:{}/mcp", w.port());
+                        let token = w.mcp_token().unwrap_or_default().to_string();
+                        ui.label(
+                            RichText::new(format!(
+                                "Use no outro computador (mesma rede). Cadastre um servidor por PC: este aparece como \"{}\". O token protege o acesso; não compartilhe fora de casa.",
+                                setup::lan_name()
+                            ))
+                            .size(11.0)
+                            .color(DIM),
+                        );
+                        vec![
+                            ("Claude Code", "rode no terminal do outro computador", setup::lan::claude_code(&url, &token)),
+                            ("Cursor · Antigravity e outros", "cole em mcpServers", setup::lan::json(&url, &token)),
+                            ("Codex", "cole em ~/.codex/config.toml", setup::lan::codex(&url, &token)),
+                        ]
+                    }
+                    None => {
+                        ui.label(RichText::new("Acesso pela rede desligado.").size(12.0).color(MUTED));
+                        Vec::new()
+                    }
+                }
+            };
+
             let mut copied = None;
-            let items = [
-                ("Claude Code", "rode no terminal", setup::claude_code()),
-                ("Claude Desktop · Antigravity · Cursor", "cole em mcpServers do arquivo de configuração", setup::json()),
-                ("Codex", "cole em ~/.codex/config.toml", setup::codex()),
-            ];
             for (name, how, text) in items {
                 ui.horizontal(|ui| {
                     ui.label(RichText::new(name).size(13.0).strong());
@@ -200,11 +246,12 @@ impl App {
             if let Some(n) = copied {
                 self.message = Some((format!("Configuração para {n} copiada."), true));
             }
-            ui.label(
-                RichText::new("O status ao vivo exige o Monitor aberto; histórico, eventos e testes funcionam mesmo com ele fechado.")
-                    .size(11.0)
-                    .color(DIM),
-            );
+            let note = if self.mcp_show_lan {
+                "Funciona enquanto o Monitor estiver aberto neste PC (também na bandeja)."
+            } else {
+                "O status ao vivo exige o Monitor aberto; histórico, eventos e testes funcionam mesmo com ele fechado."
+            };
+            ui.label(RichText::new(note).size(11.0).color(DIM));
         });
     }
 

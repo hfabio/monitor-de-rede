@@ -82,6 +82,6 @@ if [ -z "$KS" ]; then
       -dname "CN=Monitor de Rede, O=hfabio, C=BR"
   fi
 fi
-"$BT/apksigner" sign --ks "$KS" --ks-pass "pass:$PASS" --key-pass "pass:$PASS" --out "$OUT" "$W/aligned.apk"
+"$BT/apksigner" sign --v4-signing-enabled false --ks "$KS" --ks-pass "pass:$PASS" --key-pass "pass:$PASS" --out "$OUT" "$W/aligned.apk"
 "$BT/apksigner" verify "$OUT"
 echo "APK: $OUT ($(du -h "$OUT" | cut -f1))"

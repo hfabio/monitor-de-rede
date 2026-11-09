@@ -20,6 +20,8 @@ pub const SUPPORTED: bool = cfg!(any(windows, target_os = "macos"));
 
 /// Mostra a janela de novo (pode ser chamado de qualquer thread).
 pub fn wake(ctx: &egui::Context) {
+    #[cfg(windows)]
+    imp::raise();
     ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
     ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
     ctx.request_repaint();
@@ -92,14 +94,18 @@ mod imp {
 
     pub struct Tray;
 
-    pub fn show_window(ctx: &egui::Context, hwnd: isize) {
+    /// Janela do app, guardada para poder mostrá-la de outras threads.
+    static HWND: std::sync::atomic::AtomicIsize = std::sync::atomic::AtomicIsize::new(0);
+
+    /// Mostra a janela escondida e a traz para a frente.
+    pub fn raise() {
+        let hwnd = HWND.load(std::sync::atomic::Ordering::Relaxed);
         if hwnd != 0 {
             unsafe {
                 ShowWindow(hwnd as _, SW_SHOWNORMAL);
                 SetForegroundWindow(hwnd as _);
             }
         }
-        super::wake(ctx);
     }
 
     pub fn install(cc: &eframe::CreationContext<'_>, shared: Arc<Mutex<Shared>>, usage: Arc<Mutex<Usage>>) -> Option<Tray> {
@@ -108,12 +114,13 @@ mod imp {
             RawWindowHandle::Win32(h) => h.hwnd.get(),
             _ => return None,
         };
+        HWND.store(hwnd, std::sync::atomic::Ordering::Relaxed);
         let ctx = cc.egui_ctx.clone();
-        std::thread::spawn(move || run(hwnd, ctx, shared, usage));
+        std::thread::spawn(move || run(ctx, shared, usage));
         Some(Tray)
     }
 
-    fn run(hwnd: isize, ctx: egui::Context, shared: Arc<Mutex<Shared>>, usage: Arc<Mutex<Usage>>) {
+    fn run(ctx: egui::Context, shared: Arc<Mutex<Shared>>, usage: Arc<Mutex<Usage>>) {
         let open = MenuItem::new("Abrir Monitor de Rede", true, None);
         let quit = MenuItem::new("Encerrar app", true, None);
         let menu = Menu::new();
@@ -142,12 +149,12 @@ mod imp {
             while let Ok(e) = TrayIconEvent::receiver().try_recv() {
                 let left_click = matches!(e, TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. });
                 if left_click || matches!(e, TrayIconEvent::DoubleClick { .. }) {
-                    show_window(&ctx, hwnd);
+                    super::wake(&ctx);
                 }
             }
             while let Ok(e) = MenuEvent::receiver().try_recv() {
                 if e.id == *open.id() {
-                    show_window(&ctx, hwnd);
+                    super::wake(&ctx);
                 } else if e.id == *quit.id() {
                     std::process::exit(0);
                 }
