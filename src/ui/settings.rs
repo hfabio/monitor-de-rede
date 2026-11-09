@@ -344,7 +344,7 @@ impl App {
                 });
                 if cfg!(windows) {
                     ui.label(
-                        RichText::new("Na primeira vez, o Firewall do Windows pode pedir permissão: clique em \"Permitir acesso\" para redes privadas. Se não abrir no celular, confira se a rede do PC está como privada.")
+                        RichText::new("Instalado pelo instalador, o app já fica liberado no Firewall do Windows. Sem instalar, o Firewall pede permissão na primeira vez: marque redes privadas e públicas e clique em \"Permitir acesso\".")
                             .size(11.0)
                             .color(DIM),
                     );

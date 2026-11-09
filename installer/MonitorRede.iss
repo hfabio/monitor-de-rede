@@ -7,8 +7,8 @@
 ; - cria a tarefa agendada "MonitorRede" (privilégios mais altos), que o app
 ;   usa para abrir sempre como administrador sem a pergunta do UAC. Assim a
 ;   aba "Uso da rede" mostra a banda de cada aplicativo;
-; - libera o app no Firewall do Windows para redes privadas (painel no
-;   celular e MCP pela rede);
+; - libera o app no Firewall do Windows em qualquer perfil de rede (painel
+;   no celular e MCP pela rede). Roda de novo em cada atualização;
 ; - opcionalmente, inicia com o Windows (direto na bandeja).
 
 #ifndef AppVersion
@@ -60,7 +60,8 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 [Run]
 Filename: "{app}\MonitorRede.exe"; Parameters: "--instalar-tarefa"; StatusMsg: "Configurando para abrir como administrador..."; Flags: runhidden waituntilterminated
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""Monitor de Rede"""; Flags: runhidden waituntilterminated
-Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""Monitor de Rede"" dir=in action=allow program=""{app}\MonitorRede.exe"" enable=yes profile=private"; StatusMsg: "Liberando no Firewall (redes privadas)..."; Flags: runhidden waituntilterminated
+; Todas as redes: o Windows costuma marcar a rede de casa como "Pública".
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""Monitor de Rede"" dir=in action=allow program=""{app}\MonitorRede.exe"" enable=yes profile=any"; StatusMsg: "Liberando no Firewall..."; Flags: runhidden waituntilterminated
 Filename: "{app}\MonitorRede.exe"; Description: "Abrir o Monitor de Rede"; Flags: postinstall nowait skipifsilent runasoriginaluser
 ; Atualização automática (instalador em modo silencioso): reabre o app.
 Filename: "{app}\MonitorRede.exe"; Parameters: "{param:appargs|--bandeja}"; Flags: nowait runasoriginaluser; Check: WizardSilent

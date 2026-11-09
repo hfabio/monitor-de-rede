@@ -20,7 +20,7 @@ No Mac e no Linux, não precisa instalar nada. No Android, veja [Android](#andro
 
 - **Windows (instalador):** instala em Arquivos de Programas e deixa o app abrindo sempre como administrador, sem a pergunta do Windows (UAC). Assim a aba **Uso da rede** mostra a banda de cada aplicativo.
   - Para isso, cria a tarefa agendada **MonitorRede**, com privilégios mais altos. O atalho e o "Iniciar com o Windows" disparam essa tarefa.
-  - Também libera o app no Firewall para redes privadas, para o painel no celular e o MCP pela rede funcionarem sem aviso.
+  - Também libera o app no Firewall do Windows, em qualquer tipo de rede (o Windows costuma marcar a rede de casa como "Pública"), para o painel no celular e o MCP pela rede funcionarem sem aviso. A regra é refeita a cada atualização e sempre que o app abre como administrador.
   - Pede a senha de administrador uma vez, na instalação. Se quem usa o PC não for administrador, a tarefa fica na conta de quem digitou a senha; nesse caso use o `.exe` sem instalar.
   - Para desinstalar: **Configurações → Aplicativos**. A desinstalação remove a tarefa e a regra do Firewall; os dados em `%APPDATA%\MonitorRede` ficam.
 - **Windows (sem instalar):** o `.exe` roda direto. Para ver a banda por aplicativo, use o botão **Reabrir como administrador**.
@@ -95,7 +95,7 @@ Com o app aberto no PC, dá para acompanhar a rede pelo navegador do celular (An
 - A aba **Configurações** mostra o endereço para abrir no celular, como `http://192.168.68.11:47810`, com um botão para copiar.
 - Dá para desligar o painel ou trocar a porta (padrão 47810; até a versão 0.6.0 era 8080, e configurações antigas mudam sozinhas) no cartão **Painel no celular**.
 - É só leitura: pelo celular não dá para mudar a configuração nem rodar testes.
-- **Windows:** na primeira vez, o Firewall pode pedir permissão. Clique em **Permitir acesso** para redes privadas.
+- **Windows:** o instalador já libera o app no Firewall. Com o `.exe` sem instalar, o Firewall pede permissão na primeira vez: marque redes privadas **e públicas** e clique em **Permitir acesso**.
 - Se a página mostrar "Sem conexão com o PC", confira se o app está aberto e se o celular está no mesmo Wi-Fi.
 
 ## Android
@@ -256,7 +256,7 @@ Exemplo de resultado:
 ```
 
 - Os comandos varrem só a sua faixa (`192.168.68.1` a `.254`, por exemplo). Na rede dos Decos da TP-Link, que vai de `192.168.68.x` a `192.168.71.x`, um PC numa faixa diferente da sua não aparece: troque `REDE` (ou `$rede`) por `192.168.69`, `192.168.70` ou `192.168.71` e rode de novo.
-- Se um PC não aparecer, confira se o app está aberto nele, se o **Painel no celular** está ligado e, no Windows, se o Firewall liberou o app. O instalador já cria essa regra.
+- Se um PC não aparecer, confira se o app está aberto nele, se o **Painel no celular** está ligado e, no Windows, se o app foi instalado pelo instalador, que libera o Firewall.
 - O app Android faz a mesma busca em **Ajustes → Procurar PCs**.
 
 ### Ferramentas
@@ -333,7 +333,7 @@ O workflow [`.github/workflows/build.yml`](.github/workflows/build.yml) compila 
 Por padrão, cada build assina o APK com uma chave de teste nova. Para manter a mesma chave entre versões (e atualizar sem desinstalar), cadastre os secrets `ANDROID_KEYSTORE_BASE64` (o arquivo `.keystore` em base64) e `ANDROID_KEYSTORE_PASSWORD`.
 
 ```bash
-git tag v0.6.1 && git push origin v0.6.1
+git tag v0.6.2 && git push origin v0.6.2
 ```
 
 ## Estrutura

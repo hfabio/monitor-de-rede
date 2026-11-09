@@ -96,6 +96,9 @@ pub fn start(show: bool) -> bool {
 
 /// Atende os pedidos de outras cópias (chamado quando a interface existe).
 pub fn serve(ctx: egui::Context) {
+    if win::is_elevated() {
+        std::thread::spawn(win::ensure_firewall);
+    }
     let Some(listener) = LISTENER.lock().unwrap().take() else { return };
     let me = if win::is_elevated() { "admin" } else { "user" };
     std::thread::spawn(move || {
@@ -151,6 +154,18 @@ mod win {
         unsafe {
             AllowSetForegroundWindow(ASFW_ANY);
         }
+    }
+
+    /// Libera o app no Firewall em qualquer perfil de rede (o Windows costuma
+    /// marcar a rede de casa como "Pública"). Precisa de administrador; refeito
+    /// a cada abertura para valer também depois de atualizar ou mudar de pasta.
+    pub fn ensure_firewall() {
+        let Ok(exe) = std::env::current_exe() else { return };
+        let netsh = |args: &str| {
+            let _ = Command::new("netsh").raw_arg(args).creation_flags(CREATE_NO_WINDOW).output();
+        };
+        netsh(r#"advfirewall firewall delete rule name="Monitor de Rede""#);
+        netsh(&format!(r#"advfirewall firewall add rule name="Monitor de Rede" dir=in action=allow program="{}" enable=yes profile=any"#, exe.display()));
     }
 
     pub fn task_exists() -> bool {
@@ -237,6 +252,7 @@ mod win {
     pub fn is_elevated() -> bool {
         false
     }
+    pub fn ensure_firewall() {}
     pub fn allow_foreground() {}
     pub fn task_exists() -> bool {
         false
