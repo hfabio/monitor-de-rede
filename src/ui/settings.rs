@@ -20,7 +20,9 @@ impl App {
                     self.web_card(ui);
                 });
             });
-            ui.allocate_ui_with_layout(egui::vec2(right_w, h), egui::Layout::top_down(egui::Align::Min), |ui| self.test_panel(ui, right_w));
+            ui.allocate_ui_with_layout(egui::vec2(right_w, h), egui::Layout::top_down(egui::Align::Min), |ui| {
+                egui::ScrollArea::vertical().id_salt("teste").show(ui, |ui| self.test_panel(ui, right_w));
+            });
         });
     }
 
@@ -129,6 +131,7 @@ impl App {
                     ui.add(egui::DragValue::new(&mut d.retention_days).range(1..=3650));
                 });
             });
+            ui.checkbox(&mut d.auto_update, "Atualizar automaticamente");
             let mut on = self.autostart;
             if ui.checkbox(&mut on, crate::autostart::label()).changed() {
                 match crate::autostart::set(on) {
@@ -161,6 +164,46 @@ impl App {
             if ui.add(egui::Button::new(RichText::new("Restaurar endereços padrão").size(12.0).color(MUTED)).frame(false)).clicked() {
                 self.draft.targets = crate::config::Config::default().targets;
             }
+        });
+        ui.add_space(14.0);
+        self.update_card(ui, width);
+    }
+
+    fn update_card(&mut self, ui: &mut egui::Ui, width: f32) {
+        use crate::update::State;
+        card(ui, BORDER, |ui| {
+            ui.set_width(width - 30.0);
+            ui.label(RichText::new("Atualizações").size(14.0).strong());
+            let state = self.updater.state();
+            let color = match state {
+                State::Available(_) | State::Installing(_) => ACCENT,
+                State::Failed(_) => RED,
+                _ => MUTED,
+            };
+            ui.label(RichText::new(state.describe()).size(12.0).color(color));
+            ui.horizontal(|ui| {
+                match &state {
+                    State::Available(r) => {
+                        if ui.add(primary_button("Atualizar agora")).clicked() {
+                            self.start_update(r.clone());
+                        }
+                        if ui.button("Novidades").clicked() {
+                            ui.ctx().open_url(egui::OpenUrl::new_tab(&r.page));
+                        }
+                    }
+                    State::Checking | State::Installing(_) => {}
+                    _ => {
+                        if ui.button("Procurar agora").clicked() {
+                            self.updater.check_now();
+                        }
+                    }
+                }
+            });
+            ui.label(
+                RichText::new("Procura versões novas no GitHub ao abrir e a cada 6 horas. Com \"Atualizar automaticamente\", instala sozinho e reabre o app.")
+                    .size(11.0)
+                    .color(DIM),
+            );
         });
     }
 

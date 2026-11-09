@@ -185,6 +185,7 @@ pub struct App {
     confirm_remove: Option<usize>,
     manual: String,
     message: Option<(String, bool)>,
+    updater: Arc<crate::update::Updater>,
 }
 
 impl App {
@@ -196,6 +197,9 @@ impl App {
         let pc = Arc::new(Mutex::new(PcState::default()));
         pc.lock().unwrap().set_addr(phone.pc.clone());
         pc::spawn(pc.clone(), cc.egui_ctx.clone());
+        let repaint = cc.egui_ctx.clone();
+        // No Android só avisa; o APK novo é baixado pelo navegador.
+        let updater = crate::update::spawn(false, move || repaint.request_repaint());
         Self {
             draft: cfg.clone(),
             cfg,
@@ -210,6 +214,7 @@ impl App {
             new_host: String::new(),
             confirm_remove: None,
             message: None,
+            updater,
         }
     }
 
@@ -508,6 +513,15 @@ impl App {
                 });
             }
         });
+        if let crate::update::State::Available(r) = self.updater.state() {
+            card(ui, ACCENT, |ui| {
+                ui.set_width(ui.available_width());
+                ui.label(RichText::new(format!("Versão {} disponível", r.version)).size(15.0).strong());
+                if ui.add(primary_button("Baixar atualização")).clicked() {
+                    crate::android::open_url(r.asset.as_deref().unwrap_or(&r.page));
+                }
+            });
+        }
         ui.vertical_centered(|ui| {
             ui.label(RichText::new("Mede só com o app aberto, sem rodar em segundo plano.").size(12.0).color(DIM));
         });
@@ -897,6 +911,30 @@ impl App {
             if ui.add(egui::Button::new(RichText::new("Restaurar endereços padrão").size(13.0).color(MUTED)).frame(false)).clicked() {
                 self.cfg.targets = Config::default().targets;
                 self.save_targets();
+            }
+        });
+        ui.label(RichText::new("Atualizações").size(13.0).color(DIM));
+        card(ui, BORDER, |ui| {
+            ui.set_width(ui.available_width());
+            let state = self.updater.state();
+            ui.label(RichText::new(state.describe()).size(14.0).color(if matches!(state, crate::update::State::Failed(_)) { RED } else { MUTED }));
+            match &state {
+                crate::update::State::Available(r) => {
+                    if ui.add(primary_button("Baixar atualização")).clicked() {
+                        crate::android::open_url(r.asset.as_deref().unwrap_or(&r.page));
+                    }
+                    ui.label(
+                        RichText::new("Abre o download do APK novo. Depois, toque no arquivo baixado e em Atualizar.")
+                            .size(12.0)
+                            .color(DIM),
+                    );
+                }
+                crate::update::State::Checking => {}
+                _ => {
+                    if ui.add(egui::Button::new("Procurar agora").min_size(egui::vec2(0.0, 44.0))).clicked() {
+                        self.updater.check_now();
+                    }
+                }
             }
         });
         ui.label(

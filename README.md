@@ -12,7 +12,7 @@ Baixe a versão mais recente em **[Releases](https://github.com/hfabio/monitor-d
 |---|---|
 | Windows 10/11 (64 bits), instalador (recomendado) | `MonitorRede-windows-x64-instalador.exe` |
 | Windows 10/11 (64 bits), sem instalar | `MonitorRede-windows-x64.exe` |
-| macOS (Apple Silicon e Intel) | `MonitorRede-macos-universal.zip` |
+| macOS (Apple Silicon e Intel) | `MonitorRede-macos.dmg` |
 | Linux (x64) | `MonitorRede-linux-x64.tar.gz` |
 | Android 8 ou mais novo (64 bits) | `MonitorRede-android-arm64.apk` |
 
@@ -25,8 +25,17 @@ No Mac e no Linux, não precisa instalar nada. No Android, veja [Android](#andro
   - Para desinstalar: **Configurações → Aplicativos**. A desinstalação remove a tarefa e a regra do Firewall; os dados em `%APPDATA%\MonitorRede` ficam.
 - **Windows (sem instalar):** o `.exe` roda direto. Para ver a banda por aplicativo, use o botão **Reabrir como administrador**.
 - **Windows:** se o SmartScreen avisar "aplicativo não reconhecido", clique em **Mais informações → Executar assim mesmo**. O app não é assinado digitalmente.
-- **macOS:** descompacte, mova para Aplicativos e, na primeira vez, clique com o botão direito → **Abrir**. Isso é preciso porque o app não é assinado pela Apple.
+- **macOS:** abra o `.dmg` e arraste o app para **Aplicativos**. Na primeira vez, clique com o botão direito → **Abrir**, porque o app não é assinado pela Apple. Se você abrir o app direto da imagem ou dos Downloads, ele mesmo se copia para Aplicativos (ou `~/Applications`, sem permissão) e abre de lá.
 - **Linux:** descompacte e rode `./monitor-rede`.
+
+## Atualização automática
+
+O app procura versões novas nas [Releases](https://github.com/hfabio/monitor-de-rede/releases) ao abrir e a cada 6 horas. Com **Atualizar automaticamente** ligado (padrão, em **Configurações**), ele baixa, instala e reabre sozinho, voltando para a bandeja se estava lá. Com a opção desligada, aparece o aviso **Atualizar para a versão X** no topo da janela.
+
+- **Windows instalado:** roda o instalador novo em modo silencioso.
+- **Windows sem instalar e Linux:** troca o executável no mesmo lugar.
+- **macOS:** troca o `Monitor de Rede.app` (o `.zip` da Release).
+- **Android:** o Android não deixa um app se atualizar sozinho fora da Play Store. O app avisa na tela Início e em Ajustes, e o botão **Baixar atualização** abre o download do APK novo.
 
 ## Bandeja do sistema
 
@@ -254,7 +263,7 @@ O workflow [`.github/workflows/build.yml`](.github/workflows/build.yml) compila 
 Por padrão, cada build assina o APK com uma chave de teste nova. Para manter a mesma chave entre versões (e atualizar sem desinstalar), cadastre os secrets `ANDROID_KEYSTORE_BASE64` (o arquivo `.keystore` em base64) e `ANDROID_KEYSTORE_PASSWORD`.
 
 ```bash
-git tag v0.5.0 && git push origin v0.5.0
+git tag v0.6.0 && git push origin v0.6.0
 ```
 
 ## Estrutura
@@ -269,6 +278,7 @@ git tag v0.5.0 && git push origin v0.5.0
 | `src/assess.rs` | avaliação em linguagem simples (verde, amarelo, vermelho) |
 | `src/status.rs` | status ao vivo em JSON |
 | `src/mcp.rs` | servidor MCP (stdio; pela rede, via `src/web.rs`) |
+| `src/update.rs` | atualização automática pelas Releases do GitHub e, no macOS, cópia para Aplicativos |
 | `src/instance.rs` | uma cópia só do app; no Windows instalado, abre como administrador pela tarefa agendada |
 | `installer/MonitorRede.iss` | instalador do Windows (Inno Setup) |
 | `src/tray.rs` | ícone na bandeja do sistema |

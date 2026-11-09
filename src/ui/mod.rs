@@ -129,6 +129,7 @@ pub struct App {
     web_error: Option<String>,
     /// Cartão do MCP mostrando a configuração pela rede (em vez da local).
     mcp_show_lan: bool,
+    updater: std::sync::Arc<crate::update::Updater>,
 }
 
 /// Cópia do estado de um alvo para desenhar sem segurar o lock.
@@ -168,6 +169,13 @@ impl App {
         crate::status::spawn_writer(monitor.shared.clone(), usage.clone());
         let tray = crate::tray::install(cc, monitor.shared.clone(), usage.clone());
         crate::instance::serve(cc.egui_ctx.clone());
+        let repaint = cc.egui_ctx.clone();
+        let updater = crate::update::spawn(cfg.auto_update, move || repaint.request_repaint());
+        // O app pode ter mudado de pasta (atualização, cópia para Aplicativos):
+        // regrava o "iniciar com o sistema" com o caminho atual.
+        if crate::autostart::is_enabled() {
+            let _ = crate::autostart::set(true);
+        }
         let mut app = Self {
             draft: cfg.clone(),
             cfg,
@@ -187,6 +195,7 @@ impl App {
             web: None,
             web_error: None,
             mcp_show_lan: false,
+            updater,
         };
         app.restart_web();
         app
@@ -291,10 +300,33 @@ impl App {
         self.cfg = self.draft.clone();
         self.monitor.apply(&self.cfg);
         self.restart_web();
+        self.updater.auto.store(self.cfg.auto_update, std::sync::atomic::Ordering::Relaxed);
         self.message = Some(match self.cfg.save() {
             Ok(()) => ("Configuração salva e aplicada.".into(), true),
             Err(e) => (format!("Aplicado, mas não consegui salvar: {e}"), false),
         });
+    }
+
+    /// Aviso de atualização no topo da janela.
+    fn update_badge(&mut self, ui: &mut egui::Ui) {
+        use crate::update::State;
+        match self.updater.state() {
+            State::Available(r) => {
+                let text = format!("Atualizar para a versão {}", r.version);
+                if ui.add(egui::Button::new(RichText::new(text).size(12.0).color(ACCENT)).frame(false)).clicked() {
+                    self.start_update(r);
+                }
+            }
+            State::Installing(v) => {
+                ui.label(RichText::new(format!("Atualizando para a {v}…")).size(12.0).color(ACCENT));
+            }
+            _ => {}
+        }
+    }
+
+    fn start_update(&mut self, r: crate::update::Release) {
+        let up = self.updater.clone();
+        std::thread::spawn(move || crate::update::install(&up, &r, true));
     }
 
     fn top_bar(&mut self, ui: &mut egui::Ui) {
@@ -302,13 +334,15 @@ impl App {
         egui::Panel::top("titulo").frame(frame).show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label(RichText::new("Monitor de Rede").color(MUTED));
-                if let View::Tab(_) = self.view {
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if let View::Tab(_) = self.view {
                         if ui.add(egui::Button::new(RichText::new("← Início").color(MUTED)).frame(false)).clicked() {
                             self.view = View::Home;
                         }
-                    });
-                }
+                        ui.add_space(12.0);
+                    }
+                    self.update_badge(ui);
+                });
             });
         });
 

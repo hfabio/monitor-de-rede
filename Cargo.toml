@@ -1,6 +1,6 @@
 [package]
 name = "monitor-rede"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2021"
 description = "Monitor de latência, perda de pacotes e uso da rede com interface gráfica"
 repository = "https://github.com/hfabio/monitor-de-rede"
@@ -21,6 +21,7 @@ serde_json = "1"
 dirs = "7"
 chrono = "0.4"
 rusqlite = { version = "0.41", features = ["bundled"] }
+ureq = { version = "3.5.1", default-features = false, features = ["rustls"] }
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
 eframe = "0.37"

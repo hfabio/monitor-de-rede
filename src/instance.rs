@@ -49,10 +49,12 @@ pub fn start(show: bool) -> bool {
     }
     let me_admin = win::is_elevated();
     let cmd = if show { "show" } else { "ping" };
+    // Versão recém-atualizada: substitui a antiga mesmo que ela ainda esteja aberta.
+    let updated = std::env::args().any(|a| a == crate::update::UPDATED_ARG);
 
     match send("ping") {
         // Já existe uma cópia igual ou "melhor": entrega para ela.
-        Some(other) if other.elevated || !me_admin => {
+        Some(other) if !updated && (other.elevated || !me_admin) => {
             if show {
                 send("show");
             }

@@ -137,3 +137,31 @@ fn finish_activity() {
         Ok(())
     });
 }
+
+/// Abre um endereço no navegador (Intent ACTION_VIEW).
+pub fn open_url(url: &str) {
+    let Some(app) = APP.get() else { return };
+    // SAFETY: ponteiros fornecidos pela android-activity, válidos enquanto o app roda.
+    let vm = unsafe { JavaVM::from_raw(app.vm_as_ptr().cast()) };
+    let activity = app.activity_as_ptr();
+    let r = vm.attach_current_thread(|env| -> jni::errors::Result<()> {
+        let activity = unsafe { JObject::from_raw(env, activity.cast()) };
+        let text = env.new_string(url)?;
+        let uri = env
+            .call_static_method(jni_str!("android/net/Uri"), jni_str!("parse"), jni_sig!((s: java.lang.String) -> android.net.Uri), &[(&text).into()])?
+            .l()?;
+        let action = env.new_string("android.intent.action.VIEW")?;
+        let intent = env.new_object(
+            jni_str!("android/content/Intent"),
+            jni_sig!((action: java.lang.String, uri: android.net.Uri) -> void),
+            &[(&action).into(), (&uri).into()],
+        )?;
+        // FLAG_ACTIVITY_NEW_TASK
+        env.call_method(&intent, jni_str!("addFlags"), jni_sig!((f: jint) -> android.content.Intent), &[0x1000_0000i32.into()])?;
+        env.call_method(&activity, jni_str!("startActivity"), jni_sig!((i: android.content.Intent) -> void), &[(&intent).into()])?;
+        Ok(())
+    });
+    if let Err(e) = r {
+        eprintln!("Monitor de Rede: abrir {url}: {e}");
+    }
+}

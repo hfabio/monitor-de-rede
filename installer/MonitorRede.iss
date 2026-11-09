@@ -62,6 +62,8 @@ Filename: "{app}\MonitorRede.exe"; Parameters: "--instalar-tarefa"; StatusMsg: "
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""Monitor de Rede"""; Flags: runhidden waituntilterminated
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""Monitor de Rede"" dir=in action=allow program=""{app}\MonitorRede.exe"" enable=yes profile=private"; StatusMsg: "Liberando no Firewall (redes privadas)..."; Flags: runhidden waituntilterminated
 Filename: "{app}\MonitorRede.exe"; Description: "Abrir o Monitor de Rede"; Flags: postinstall nowait skipifsilent runasoriginaluser
+; Atualização automática (instalador em modo silencioso): reabre o app.
+Filename: "{app}\MonitorRede.exe"; Parameters: "{param:appargs|--bandeja}"; Flags: nowait runasoriginaluser; Check: WizardSilent
 
 [UninstallRun]
 Filename: "{sys}\taskkill.exe"; Parameters: "/f /im MonitorRede.exe"; Flags: runhidden waituntilterminated; RunOnceId: "Fechar"

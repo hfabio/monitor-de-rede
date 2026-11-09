@@ -104,6 +104,10 @@ jobs:
           </dict></plist>
           EOF
           codesign --force --deep -s - "$APP"
+          # .dmg para instalar (arrastar para Aplicativos) e .zip usado pela atualização automática.
+          mkdir -p dmg && cp -R "$APP" dmg/ && ln -s /Applications dmg/Applications
+          hdiutil create -volname "Monitor de Rede" -srcfolder dmg -ov -format UDZO dist/MonitorRede-macos.dmg
+          rm -rf dmg
           cd dist && ditto -c -k --keepParent "Monitor de Rede.app" MonitorRede-macos-universal.zip && rm -rf "Monitor de Rede.app"
 
       - uses: actions/upload-artifact@v7
