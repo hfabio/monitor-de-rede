@@ -157,6 +157,12 @@ fn exe() -> Option<PathBuf> {
 
 /// Consulta a última Release. `None` = já está na última versão.
 pub fn check() -> Result<Option<Release>, String> {
+    let r = latest()?;
+    Ok(newer(&r.version, CURRENT).then_some(r))
+}
+
+/// A última Release publicada, mais nova ou não que esta versão.
+pub fn latest() -> Result<Release, String> {
     let text = agent()
         .get(API)
         .header("User-Agent", format!("monitor-rede/{CURRENT}"))
@@ -168,9 +174,6 @@ pub fn check() -> Result<Option<Release>, String> {
         .map_err(|e| e.to_string())?;
     let v: Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
     let tag = v["tag_name"].as_str().ok_or("Resposta do GitHub sem versão")?;
-    if !newer(tag, CURRENT) {
-        return Ok(None);
-    }
     let asset = v["assets"]
         .as_array()
         .into_iter()
@@ -178,11 +181,11 @@ pub fn check() -> Result<Option<Release>, String> {
         .find(|a| a["name"].as_str() == Some(asset_name()))
         .and_then(|a| a["browser_download_url"].as_str())
         .map(String::from);
-    Ok(Some(Release {
+    Ok(Release {
         version: tag.trim_start_matches('v').to_string(),
         page: v["html_url"].as_str().unwrap_or("https://github.com/hfabio/monitor-de-rede/releases/latest").to_string(),
         asset,
-    }))
+    })
 }
 
 /// Baixa e instala. Se der certo, o app reabre na versão nova e este
@@ -198,6 +201,46 @@ pub fn install(up: &Updater, r: &Release, show: bool) {
     });
     if let Err(e) = result {
         up.set(State::Failed(format!("Não consegui atualizar para a {}: {e}", r.version)));
+    }
+}
+
+/// Atualização pedida de fora (ferramenta `update_app` do MCP): baixa agora e,
+/// se der certo, instala e reabre o app em segundo plano 2 s depois, para dar
+/// tempo de responder ao pedido. `show`: abrir a janela depois.
+pub fn install_remote(r: &Release, show: bool) -> Result<(), String> {
+    if cfg!(target_os = "android") {
+        return Err("No Android, a atualização é feita baixando o APK novo.".into());
+    }
+    let url = r.asset.as_deref().ok_or("Esta versão não tem arquivo para este sistema.")?;
+    let bytes = download(url)?;
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_secs(2));
+        if let Err(e) = replace_and_restart(&bytes, show) {
+            eprintln!("Monitor de Rede: atualização falhou: {e}");
+        }
+    });
+    Ok(())
+}
+
+/// Como este computador se atualiza, e se vai aparecer alguma confirmação.
+pub fn install_mode() -> (&'static str, Option<&'static str>) {
+    if cfg!(target_os = "android") {
+        ("apk", Some("No Android, baixe o APK novo pelo botão do app."))
+    } else if cfg!(windows) && windows_installed() {
+        #[cfg(not(target_os = "android"))]
+        if !crate::instance::is_elevated() {
+            return (
+                "windows_installer",
+                Some("O app não está rodando como administrador: o Windows vai pedir confirmação (UAC) na tela, e a atualização só acontece se alguém clicar em Sim."),
+            );
+        }
+        ("windows_installer", None)
+    } else if cfg!(windows) {
+        ("windows_portable", None)
+    } else if cfg!(target_os = "macos") {
+        ("macos_app", None)
+    } else {
+        ("linux_binary", None)
     }
 }
 

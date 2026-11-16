@@ -269,7 +269,10 @@ Exemplo de resultado:
 | `get_events` | quedas, retornos, picos, perdas e erros de DNS de um período, com filtros por tipo e por endereço |
 | `get_history` | resumo de um período por endereço (perda, média, melhor e pior latência, jitter), os piores minutos e uma série de até 60 pontos |
 | `probe_host` | testa um endereço na hora (ping, `gateway`, `https://…` ou `host:porta`) |
+| `update_app` | mostra a versão instalada e a mais recente; com `install: true`, baixa e instala a versão nova remotamente (o app reabre na bandeja em alguns segundos) |
 | `list_targets` | endereços e opções configurados |
+
+Com o MCP pela rede, o `update_app` permite atualizar o PC de outra pessoa da casa sem ela precisar clicar em nada. No Windows instalado, se o app não estiver rodando como administrador, o Windows pede confirmação (UAC) na tela daquele PC; o campo `note` da resposta avisa quando isso vai acontecer. O `get_status` traz a versão de cada PC em `app_version`.
 
 O status ao vivo vem do app aberto, que grava `status.json` a cada 2 segundos. O histórico, os eventos e o `probe_host` funcionam mesmo com o app fechado.
 

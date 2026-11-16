@@ -161,6 +161,22 @@ Works even if the app is closed.",
             "annotations": { "readOnlyHint": true, "openWorldHint": true },
         },
         {
+            "name": "update_app",
+            "title": "Atualizar o Monitor de Rede",
+            "description": "Check GitHub Releases for a newer version of the Monitor de Rede app on this computer and, with \
+install=true, download it and install it remotely. The app restarts into the new version a few seconds after this call \
+returns (back in the system tray unless show_window=true), so this MCP connection may drop briefly; call get_status \
+afterwards and check app_version. If 'note' mentions a Windows confirmation (UAC), someone must click Yes on that PC.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "install": { "type": "boolean", "description": "Download and install if a newer version exists. Default false (only check)." },
+                    "show_window": { "type": "boolean", "description": "Open the app window after updating. Default false (stay in the tray)." }
+                }
+            },
+            "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": true },
+        },
+        {
             "name": "list_targets",
             "title": "Endereços monitorados",
             "description": "Configured targets and test settings (interval, timeout, spike and loss thresholds, history retention).",
@@ -177,6 +193,7 @@ fn call(name: &str, args: &Value) -> Option<Result<Value, String>> {
         "get_history" => get_history(args),
         "probe_host" => probe_host(args),
         "list_targets" => list_targets(),
+        "update_app" => update_app(args),
         _ => return None,
     })
 }
@@ -351,6 +368,41 @@ fn probe_host(args: &Value) -> Result<Value, String> {
     }))
 }
 
+fn update_app(args: &Value) -> Result<Value, String> {
+    use crate::update;
+    let install = args.get("install").and_then(Value::as_bool).unwrap_or(false);
+    let show = args.get("show_window").and_then(Value::as_bool).unwrap_or(false);
+    let (mode, note) = update::install_mode();
+    let latest = update::latest()?;
+    let available = update::newer(&latest.version, update::CURRENT);
+    let mut v = json!({
+        "computer": status::pc_name(),
+        "current_version": update::CURRENT,
+        "latest_version": latest.version,
+        "update_available": available,
+        "install_mode": mode,
+        "note": note,
+        "installing": false,
+    });
+    if !available {
+        v["message"] = json!("Já está na versão mais recente.");
+        return Ok(v);
+    }
+    let r = latest;
+    v["release_page"] = json!(r.page);
+    if !install {
+        v["message"] = json!(format!("Há uma versão nova ({}). Chame de novo com install=true para instalar.", r.version));
+        return Ok(v);
+    }
+    update::install_remote(&r, show)?;
+    v["installing"] = json!(true);
+    v["message"] = json!(format!(
+        "Versão {} baixada. O app instala e reabre em alguns segundos; depois confira app_version com get_status.",
+        r.version
+    ));
+    Ok(v)
+}
+
 fn list_targets() -> Result<Value, String> {
     let cfg = Config::load();
     let targets: Vec<Value> = cfg
@@ -431,7 +483,7 @@ mod tests {
         assert!(handle(&json!({"jsonrpc":"2.0","method":"notifications/initialized"})).is_none());
         let list = handle(&json!({"jsonrpc":"2.0","id":2,"method":"tools/list"})).unwrap();
         let names: Vec<&str> = list["result"]["tools"].as_array().unwrap().iter().map(|t| t["name"].as_str().unwrap()).collect();
-        assert_eq!(names, ["get_status", "get_events", "get_history", "probe_host", "list_targets"]);
+        assert_eq!(names, ["get_status", "get_events", "get_history", "probe_host", "update_app", "list_targets"]);
         let bad = handle(&json!({"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"nope"}})).unwrap();
         assert_eq!(bad["error"]["code"], -32602);
         let unknown = handle(&json!({"jsonrpc":"2.0","id":4,"method":"foo"})).unwrap();

@@ -118,6 +118,7 @@ pub fn build(shared: &Mutex<Shared>, usage: &Mutex<Usage>) -> Value {
 
     json!({
         "computer": pc_name(),
+        "app_version": env!("CARGO_PKG_VERSION"),
         "updated_at": iso(now),
         "updated_unix": now,
         "monitoring_since": iso(started),

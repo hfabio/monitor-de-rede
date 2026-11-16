@@ -120,6 +120,11 @@ pub fn serve(ctx: egui::Context) {
     });
 }
 
+/// O app está rodando como administrador (só no Windows).
+pub fn is_elevated() -> bool {
+    win::is_elevated()
+}
+
 /// Argumentos usados pelo instalador do Windows. `Some(código de saída)` se
 /// o argumento foi tratado.
 pub fn installer_command() -> Option<i32> {
