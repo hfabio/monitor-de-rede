@@ -25,6 +25,9 @@
   .dot { width: 14px; height: 14px; border-radius: 50%; flex: none; margin-top: 7px; background: var(--dim); }
   .hero h1 { margin: 0; font-size: 22px; line-height: 1.25; }
   .hero p { margin: 4px 0 0; color: var(--muted); }
+  .warn { display: none; background: #2a2414; border-color: #5a4a1c; }
+  .warn b { color: #f5a524; }
+  .warn p { margin: 4px 0 0; color: var(--muted); }
   .offline { display: none; background: #3a1d20; border: 1px solid var(--red); color: var(--red);
     border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; font-weight: 600; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 12px; }
@@ -56,6 +59,7 @@
     <div class="dot" id="hero-dot"></div>
     <div><h1 id="title">Carregando…</h1><p id="detail"></p></div>
   </div>
+  <div class="card warn" id="warn"><b id="warn-title"></b><p id="warn-msg"></p></div>
   <div class="grid" id="targets"></div>
   <div class="card">
     <div class="label">Uso da rede agora</div>
@@ -101,6 +105,10 @@ function render(s) {
   $("detail").textContent = o.message || "";
   $("hero-dot").style.background = c;
   $("hero").style.borderColor = c;
+  const w = o.load_warning;
+  $("warn").style.display = w ? "block" : "none";
+  $("warn-title").textContent = w ? w.title : "";
+  $("warn-msg").textContent = w ? w.message : "";
 
   $("targets").innerHTML = (s.targets || []).map(t => {
     const tc = COLORS[t.status] || COLORS.waiting;

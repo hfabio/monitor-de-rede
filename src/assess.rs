@@ -77,3 +77,74 @@ pub fn overall(views: &[View]) -> (Level, &'static str, String) {
     }
     (Level::Good, "Sua internet está boa", "Pode atender tranquila. Se algo mudar, esta tela avisa.".into())
 }
+
+/// Acima disso, o uso de banda deste computador pode estar travando chamadas.
+#[cfg_attr(target_os = "android", allow(dead_code))]
+pub const HEAVY_DOWN_MBPS: f64 = 100.0;
+#[cfg_attr(target_os = "android", allow(dead_code))]
+pub const HEAVY_UP_MBPS: f64 = 30.0;
+
+/// Banda que este computador usou no último minuto (o pico) e o programa que
+/// mais baixou ou enviou, quando dá para saber (Windows como administrador).
+#[cfg_attr(target_os = "android", allow(dead_code))]
+#[derive(Default)]
+pub struct Load {
+    pub down_mbps: f64,
+    pub up_mbps: f64,
+    pub top_down: Option<String>,
+    pub top_up: Option<String>,
+}
+
+/// O endereço teve perda ou pico de latência no último minuto?
+#[cfg_attr(target_os = "android", allow(dead_code))]
+pub fn degraded(recent: &Stats) -> bool {
+    recent.lost > 0 || recent.spikes > 0
+}
+
+/// Aviso quando a rede piora enquanto este computador usa muita banda:
+/// (título, frase). É a causa mais comum de chamada travando em casa.
+#[cfg_attr(target_os = "android", allow(dead_code))]
+pub fn load_warning(degraded: bool, load: &Load) -> Option<(&'static str, String)> {
+    if !degraded {
+        return None;
+    }
+    let by = |app: &Option<String>| app.as_ref().map(|n| format!(", principalmente {n}")).unwrap_or_default();
+    if load.down_mbps >= HEAVY_DOWN_MBPS {
+        return Some((
+            "Download pesado neste PC",
+            format!(
+                "Este PC baixou até {:.0} Mbps no último minuto{}. Downloads grandes (Steam, Epic, Windows Update) enchem a fila do roteador e fazem chamadas travar: pause ou limite a velocidade do download.",
+                load.down_mbps,
+                by(&load.top_down)
+            ),
+        ));
+    }
+    if load.up_mbps >= HEAVY_UP_MBPS {
+        return Some((
+            "Envio pesado neste PC",
+            format!(
+                "Este PC enviou até {:.0} Mbps no último minuto{}. Envios grandes (OneDrive, Google Drive, backup) fazem chamadas travar: pause o envio ou limite a velocidade.",
+                load.up_mbps,
+                by(&load.top_up)
+            ),
+        ));
+    }
+    None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn warns_only_when_network_degrades_under_load() {
+        let heavy = Load { down_mbps: 310.0, top_down: Some("Steam".into()), ..Default::default() };
+        let (title, msg) = load_warning(true, &heavy).unwrap();
+        assert_eq!(title, "Download pesado neste PC");
+        assert!(msg.contains("310 Mbps") && msg.contains("principalmente Steam"));
+        assert!(load_warning(false, &heavy).is_none());
+        assert!(load_warning(true, &Load { down_mbps: 40.0, ..Default::default() }).is_none());
+        let up = Load { up_mbps: 45.0, ..Default::default() };
+        assert_eq!(load_warning(true, &up).unwrap().0, "Envio pesado neste PC");
+    }
+}

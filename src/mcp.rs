@@ -100,7 +100,9 @@ fn tools() -> Value {
             "title": "Status atual da rede",
             "description": "Current network health from the running Monitor de Rede app: overall verdict in plain Portuguese, \
 per-target latency/jitter/loss for the last 1 and 5 minutes, current download/upload and top apps by bandwidth, and the \
-10 most recent events. Returns app_running=false if the app is closed (use probe_host then).",
+10 most recent events. overall.load_warning is set when packet loss or latency spikes coincide with heavy bandwidth \
+use on this computer (a big download or upload, e.g. Steam or OneDrive), the most common cause of calls freezing at home. \
+Returns app_running=false if the app is closed (use probe_host then).",
             "inputSchema": { "type": "object", "properties": {} },
             "annotations": ro,
         },

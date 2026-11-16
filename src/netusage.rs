@@ -37,6 +37,23 @@ pub struct Usage {
     pub history: VecDeque<(f64, f64, f64)>,
     pub apps: Vec<AppUsage>,
     pub per_app: PerApp,
+    /// Último programa que baixou / enviou muito: (nome, quando).
+    pub top_down: Option<(String, f64)>,
+    pub top_up: Option<(String, f64)>,
+}
+
+/// Uma aplicação conta como "o que está baixando" acima disso.
+const TOP_APP_BPS: f64 = 10e6;
+
+impl Usage {
+    /// Pico de banda do último minuto, para o aviso de download pesado.
+    pub fn load(&self) -> crate::assess::Load {
+        let now = now_secs();
+        let recent = self.history.iter().filter(|h| h.0 >= now - 60.0);
+        let (down, up) = recent.fold((0.0f64, 0.0f64), |(d, u), h| (d.max(h.1), u.max(h.2)));
+        let fresh = |a: &Option<(String, f64)>| a.as_ref().filter(|(_, t)| *t >= now - 60.0).map(|(n, _)| n.clone());
+        crate::assess::Load { down_mbps: down / 1e6, up_mbps: up / 1e6, top_down: fresh(&self.top_down), top_up: fresh(&self.top_up) }
+    }
 }
 
 pub fn spawn() -> Arc<Mutex<Usage>> {
@@ -46,6 +63,8 @@ pub fn spawn() -> Arc<Mutex<Usage>> {
         history: VecDeque::new(),
         apps: Vec::new(),
         per_app: if cfg!(windows) { PerApp::ConnectionsOnly } else { PerApp::Unsupported },
+        top_down: None,
+        top_up: None,
     }));
     let out = usage.clone();
     std::thread::spawn(move || run(usage));
@@ -87,7 +106,7 @@ fn run(usage: Arc<Mutex<Usage>>) {
         #[cfg(windows)]
         let (app_list, mode) = apps.sample(dt);
         #[cfg(not(windows))]
-        let (app_list, mode) = (Vec::new(), PerApp::Unsupported);
+        let (app_list, mode): (Vec<AppUsage>, PerApp) = (Vec::new(), PerApp::Unsupported);
 
         let t = now_secs();
         let mut u = usage.lock().unwrap();
@@ -96,6 +115,12 @@ fn run(usage: Arc<Mutex<Usage>>) {
         u.history.push_back((t, down, up));
         while u.history.front().is_some_and(|h| h.0 < t - HISTORY_SECS) {
             u.history.pop_front();
+        }
+        if let Some(a) = app_list.iter().filter(|a| a.down_bps >= TOP_APP_BPS).max_by(|a, b| a.down_bps.total_cmp(&b.down_bps)) {
+            u.top_down = Some((a.name.clone(), t));
+        }
+        if let Some(a) = app_list.iter().filter(|a| a.up_bps >= TOP_APP_BPS).max_by(|a, b| a.up_bps.total_cmp(&b.up_bps)) {
+            u.top_up = Some((a.name.clone(), t));
         }
         u.apps = app_list;
         u.per_app = mode;

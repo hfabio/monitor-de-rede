@@ -50,7 +50,7 @@ No Linux, a bandeja exigiria GTK. Lá, fechar a janela encerra o app.
 
 ## Telas
 
-**Início:** mostra o status geral em português do dia a dia e um cartão por endereço, com a latência.
+**Início:** mostra o status geral em português do dia a dia e um cartão por endereço, com a latência. Se a rede piorar (perda ou picos) enquanto o próprio PC baixa mais de 100 Mbps ou envia mais de 30 Mbps, aparece o aviso **Download pesado neste PC** (ou **Envio pesado**), com o programa responsável quando o app roda como administrador. Downloads grandes, como os do Steam e da Epic, são a causa mais comum de chamada travando em casa. O mesmo aviso aparece no painel do celular e no `get_status` do MCP.
 - **Verde:** até 80 ms.
 - **Amarelo:** de 80 ms a 1 s.
 - **Vermelho:** acima de 1 s, sem resposta ou mais de 5% de perda.

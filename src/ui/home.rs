@@ -22,11 +22,14 @@ impl App {
     pub(super) fn ui_home(&mut self, ui: &mut egui::Ui) {
         let (rows, _) = self.snapshot();
         let (level, title, subtitle) = overall(&rows);
+        // A rede piorou enquanto este PC baixava ou enviava muito?
+        let degraded = rows.iter().any(|r| !(r.error.is_some() && !r.recent.has_replies()) && crate::assess::degraded(&r.recent));
+        let warning = crate::assess::load_warning(degraded, &self.usage.lock().unwrap().load());
 
         egui::ScrollArea::vertical().show(ui, |ui| {
             ui.vertical_centered(|ui| {
                 let free = ui.available_height();
-                let content = 260.0 + rows.len().div_ceil(2) as f32 * 82.0;
+                let content = 260.0 + rows.len().div_ceil(2) as f32 * 82.0 + if warning.is_some() { 150.0 } else { 0.0 };
                 ui.add_space(((free - content) / 2.0).clamp(8.0, 80.0));
 
                 status_icon(ui, level);
@@ -34,6 +37,25 @@ impl App {
                 ui.label(RichText::new(title).size(34.0).strong());
                 ui.label(RichText::new(subtitle).size(17.0).color(MUTED));
                 ui.add_space(18.0);
+                if let Some((wt, wm)) = &warning {
+                    let width = ui.available_width().min(760.0);
+                    egui::Frame::new()
+                        .fill(Color32::from_rgb(0x2a, 0x24, 0x14))
+                        .stroke(egui::Stroke::new(1.0, Color32::from_rgb(0x5a, 0x4a, 0x1c)))
+                        .corner_radius(12.0)
+                        .inner_margin(14)
+                        .show(ui, |ui| {
+                            ui.set_width(width - 30.0);
+                            ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
+                                ui.label(RichText::new(*wt).size(15.0).strong().color(AMBER));
+                                ui.label(RichText::new(wm).size(13.0).color(MUTED));
+                                if ui.add(egui::Button::new(RichText::new("Ver uso da rede").size(12.0).color(ACCENT)).frame(false)).clicked() {
+                                    self.view = View::Tab(Tab::Usage);
+                                }
+                            });
+                        });
+                    ui.add_space(14.0);
+                }
 
                 let width = ui.available_width().min(760.0);
                 let gap = 14.0;

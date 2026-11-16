@@ -56,11 +56,14 @@ pub fn build(shared: &Mutex<Shared>, usage: &Mutex<Usage>) -> Value {
 
     let mut targets = Vec::new();
     let mut levels = Vec::new();
+    let mut degraded = false;
     for t in &sh.targets {
         let recent = compute_stats(t.samples.iter().filter(|s| s.t >= now - 60.0), spike);
         let five = compute_stats(t.samples.iter().filter(|s| s.t >= now - 300.0), spike);
         let (level, label) = assess::target_status(&recent, t.error.is_some(), t.outage_since.is_some());
-        levels.push((t.name.clone(), t.local, level, recent.has_replies(), t.outage_since.is_some(), t.error.is_some() && !recent.has_replies()));
+        let cfg_err = t.error.is_some() && !recent.has_replies();
+        degraded |= !cfg_err && assess::degraded(&recent);
+        levels.push((t.name.clone(), t.local, level, recent.has_replies(), t.outage_since.is_some(), cfg_err));
         targets.push(json!({
             "name": t.name,
             "address": t.host,
@@ -93,6 +96,7 @@ pub fn build(shared: &Mutex<Shared>, usage: &Mutex<Usage>) -> Value {
     drop(sh);
 
     let u = usage.lock().unwrap();
+    let load_warning = assess::load_warning(degraded, &u.load()).map(|(title, message)| json!({ "title": title, "message": message }));
     let apps: Vec<Value> = u
         .apps
         .iter()
@@ -123,7 +127,7 @@ pub fn build(shared: &Mutex<Shared>, usage: &Mutex<Usage>) -> Value {
             "red_loss_above_pct": assess::BAD_LOSS_PCT,
             "spike_above_ms": spike,
         },
-        "overall": { "status": level, "title": title, "message": message },
+        "overall": { "status": level, "title": title, "message": message, "load_warning": load_warning },
         "targets": targets,
         "network_usage": {
             "download_mbps": round(u.down_bps / 1e6),
