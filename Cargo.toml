@@ -1,6 +1,6 @@
 [package]
 name = "monitor-rede"
-version = "0.6.5"
+version = "0.6.6"
 edition = "2021"
 description = "Monitor de latência, perda de pacotes e uso da rede com interface gráfica"
 repository = "https://github.com/hfabio/monitor-de-rede"
@@ -24,7 +24,13 @@ rusqlite = { version = "0.41", features = ["bundled"] }
 ureq = { version = "3.5.1", default-features = false, features = ["rustls"] }
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
-eframe = "0.37"
+# Renderizador glow (OpenGL) em vez do wgpu padrão: o wgpu carrega os drivers
+# DX12/Vulkan, que no Windows reservam centenas de MB mesmo com o app só na
+# bandeja (issue #1). Para um app de gráficos simples o OpenGL basta.
+eframe = { version = "0.37", default-features = false, features = [
+    "accesskit", "clipboard", "default_fonts", "links", "system_fonts",
+    "glow", "wayland", "x11",
+] }
 sysinfo = { version = "0.40", default-features = false, features = ["network"] }
 
 # Android: NativeActivity + OpenGL ES (glow). O accesskit não funciona com NativeActivity.
